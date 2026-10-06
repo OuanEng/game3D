@@ -1,0 +1,7 @@
+.godot/
+*.tmp
+.runtime/
+export_temp*/
+feature_profiles/
+LocalLow/
+*.import
