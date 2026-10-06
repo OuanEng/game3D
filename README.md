@@ -235,3 +235,6 @@ godot --path . --rendering-method forward_plus --rendering-driver vulkan --scrip
 Use the full installed Godot executable path if `godot` is not on PATH. Check: one click makes one depression; holding Scoop does not repeat; bucket gain matches removed mesh volume; a near-full bucket accepts only the remaining amount; a full bucket changes no terrain; E empties it only at the waste station; upgrades preserve carried foam; lowered collision follows the mesh; exposed pearls stay stable and become retrievable; UV alone does not permit pickup; clean deposits count once; intro skip, timeout, and restart still behave correctly.
 
 Play a complete round to assess search difficulty, disposal-trip pacing, slope traversal, audio balance, and comfort in both intended renderers. Automated checks cannot establish those play-feel qualities.
+
+## Web play
+The committed browser build is in [docs/](docs/). Enable GitHub Pages for the master branch with folder /docs, then play at https://ouaneng.github.io/game3D/.
