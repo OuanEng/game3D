@@ -248,7 +248,7 @@ Play a complete round to assess search difficulty, disposal-trip pacing, slope t
 
 ## Web play
 The committed browser build is in [docs/](docs/). Pushing branch
-`codex/hidden-in-foam-web` triggers `.github/workflows/pages.yml`, which uploads
+`new` triggers `.github/workflows/pages.yml`, which uploads
 that folder to GitHub Pages. Play the deployed branch build at
 https://ouaneng.github.io/game3D/. GitHub Pages provides one production site per
 repository, so deploying this branch replaces the currently published build.
