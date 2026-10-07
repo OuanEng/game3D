@@ -12,9 +12,8 @@ static func install() -> void:
 		thai.add_message(source, table[source])
 	TranslationServer.add_translation(thai)
 	TranslationServer.set_locale("en")
-	# System fallback includes Thai shaping and combining marks on Windows.
-	var font := SystemFont.new()
-	font.font_names = PackedStringArray(["Tahoma", "Noto Sans Thai", "Leelawadee UI"])
+	# Web cannot access desktop system fonts. Ship Thai and Latin glyphs in the PCK.
+	var font := preload("res://assets/fonts/NotoSansThai.ttf")
 	ThemeDB.fallback_font = font
 	ThemeDB.get_default_theme().default_font = font
 
