@@ -13,13 +13,19 @@ var _rows: VBoxContainer
 var _close_button: Button
 var _buttons: Dictionary = {}
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and is_open and is_instance_valid(_manager):
+		_build_catalog()
+		_refresh()
+
 func _ready() -> void:
 	layer = 20
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_panel()
 	hide()
 
 func open_store(player: Player, manager: GameManager) -> void:
-	if is_open or not manager.running:
+	if is_open or not manager.running or manager.is_hardcore():
 		return
 	_disconnect_manager()
 	_player = player
@@ -31,7 +37,7 @@ func open_store(player: Player, manager: GameManager) -> void:
 	_player.velocity.x = 0.0
 	_player.velocity.z = 0.0
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	_message.text = "Each returned pearl earns %d credits. Dump a full bucket at FOAM WASTE. The boss clock keeps running." % _manager.pearl_reward
+	_message.text = tr("Return items or dump foam to earn credits. Next levels cost 2.4x. ") + (tr("Shift paused.") if get_tree().paused else tr("Boss clock is running."))
 	_message.modulate = Color(0.73, 0.81, 0.79)
 	_build_catalog()
 	_refresh()
@@ -46,7 +52,7 @@ func close_store() -> void:
 	if is_instance_valid(_player):
 		_player.store_open = false
 	# Losing or winning dismisses the shop without hiding the result-screen cursor.
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if is_instance_valid(_manager) and _manager.running else Input.MOUSE_MODE_VISIBLE
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if is_instance_valid(_manager) and _manager.running and not get_tree().paused else Input.MOUSE_MODE_VISIBLE
 	_disconnect_manager()
 	closed.emit()
 
@@ -58,7 +64,7 @@ func _input(event: InputEvent) -> void:
 func _process(_delta: float) -> void:
 	if is_open and is_instance_valid(_manager):
 		var seconds := int(ceil(_manager.remaining))
-		_wallet.text = "AVAILABLE CREDIT   %d     |     BOSS ARRIVES   %02d:%02d" % [_manager.credits, seconds / 60, seconds % 60]
+		_wallet.text = tr("AVAILABLE CREDIT   %d     |     BOSS ARRIVES   %02d:%02d") % [_manager.credits, seconds / 60, seconds % 60]
 
 func _disconnect_manager() -> void:
 	if not is_instance_valid(_manager):
@@ -79,34 +85,35 @@ func _buy(id: String) -> void:
 		return
 	var item: Dictionary = _manager.get_upgrade_catalog().get(id, {})
 	if _manager.buy_upgrade(id):
-		_message.text = "%s unlocked. Select 1 / SCOOP, 2 / UV, 3 / DETECTOR or use the mouse wheel." % String(item.get("name", id))
+		_message.text = tr("%s unlocked. Select 1 / SCOOP, 2 / UV, 3 / DETECTOR or use the mouse wheel.") % String(item.get("name", id))
 		if id in ["scoop", "bucket", "auto_washer"]:
-			_message.text = "%s installed. This upgrade works automatically." % String(item.get("name", id))
+			_message.text = tr("%s installed. This upgrade works automatically.") % String(item.get("name", id))
 		_message.modulate = Color(0.43, 0.95, 0.69)
 	else:
-		_message.text = "Purchase unavailable. Check your credits and owned upgrades."
+		_message.text = tr("Purchase unavailable. Check your credits and owned upgrades.")
 		_message.modulate = Color(1.0, 0.66, 0.43)
+	_build_catalog()
 	_refresh()
 
 func _refresh() -> void:
 	if not is_instance_valid(_manager):
 		return
-	_wallet.text = "AVAILABLE CREDIT   %d" % _manager.credits
+	_wallet.text = tr("AVAILABLE CREDIT   %d") % _manager.credits
 	var catalog: Dictionary = _manager.get_upgrade_catalog()
 	for id in _buttons:
 		var button: Button = _buttons[id]
 		var item: Dictionary = catalog[id]
 		var cost := int(item["cost"])
-		var owned := _manager.owns_upgrade(id)
+		var owned := _manager.level(id) >= _manager.max_level(id)
 		button.disabled = owned or _manager.credits < cost or not _manager.running
-		button.text = "OWNED" if owned else "BUY / %d" % cost
+		button.text = tr("OWNED") if owned else tr("BUY / %d") % cost
 		if owned:
 			button.tooltip_text = "Already available in your loadout."
 		elif _manager.credits < cost:
-			button.text = "NEED %d MORE" % (cost - _manager.credits)
+			button.text = tr("NEED %d MORE") % (cost - _manager.credits)
 			button.tooltip_text = "Return more clean pearls to earn credits."
 		else:
-			button.tooltip_text = "Buy this upgrade for %d credits." % cost
+			button.tooltip_text = tr("Buy this upgrade for %d credits.") % cost
 
 func _build_catalog() -> void:
 	# Rebuilding only on open keeps each button tied to the active manager.

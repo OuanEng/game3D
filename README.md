@@ -1,4 +1,14 @@
-# Pearl Panic: Foam Mountain — Godot 4
+# Hidden in Foam — Godot 4
+
+Latest update: [Normal / Hardcore, Thai / English, voxel hands and developer tools](PROP_DESIGN_GUIDE.md).
+
+Current version: [Large foam mountain, Q disposal, left capacity bar and balanced UV](LARGE_FOAM_GUIDE.md).
+
+Latest update: [Minimal HUD, twelve upgrades and ambient audio](UPGRADES_AND_AUDIO.md).
+
+Current factory version: see [Night Shift guide](NIGHT_SHIFT_GUIDE.md) for the
+main/pause menus, bare-hands progression, mixed items, rain shader and scene tree.
+The sections below document the earlier barn prototype.
 
 Open [project.godot](project.godot) in Godot 4 and press **F5**. [Main.tscn](Main.tscn) builds the playable scene from the complete, commented GDScript files linked below. The prototype uses local primitive art, generated audio, and a camera-and-caption intro.
 
@@ -237,4 +247,8 @@ Use the full installed Godot executable path if `godot` is not on PATH. Check: o
 Play a complete round to assess search difficulty, disposal-trip pacing, slope traversal, audio balance, and comfort in both intended renderers. Automated checks cannot establish those play-feel qualities.
 
 ## Web play
-The committed browser build is in [docs/](docs/). Enable GitHub Pages for the master branch with folder /docs, then play at https://ouaneng.github.io/game3D/.
+The committed browser build is in [docs/](docs/). Pushing branch
+`codex/hidden-in-foam-web` triggers `.github/workflows/pages.yml`, which uploads
+that folder to GitHub Pages. Play the deployed branch build at
+https://ouaneng.github.io/game3D/. GitHub Pages provides one production site per
+repository, so deploying this branch replaces the currently published build.

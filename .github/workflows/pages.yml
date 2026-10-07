@@ -2,7 +2,7 @@ name: Deploy Godot Web Game to GitHub Pages
 
 on:
   push:
-    branches: [master]
+    branches: [codex/hidden-in-foam-web]
   workflow_dispatch:
 
 permissions:

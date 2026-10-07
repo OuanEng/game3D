@@ -6,6 +6,10 @@ uniform bool uv_scan_enabled = false;
 uniform vec3 uv_origin = vec3(0.0);
 uniform vec3 uv_direction = vec3(0.0, 0.0, -1.0);
 uniform float uv_range = 7.0;
+// CPU-tested surface positions: xyz = beam entry point, w = glow strength.
+// The opaque mountain never turns into a beam-wide window onto deep objects.
+uniform vec4 uv_hints[8];
+uniform int uv_hint_count = 0;
 varying vec3 world_point;
 varying float foam_height;
 
@@ -36,12 +40,16 @@ void fragment() {
 		float cone = smoothstep(0.91, 0.97, alignment);
 		float reach = 1.0 - smoothstep(uv_range - 1.0, uv_range, distance_to_beam);
 		float scan = cone * reach;
-		// A stippled translucent patch reveals emissive pearls with normal
-		// depth/occlusion rules. No depth_test_disabled or through-wall pass.
-		if (hash_cell(floor(world_point * 85.0)) < scan * 0.86) {
-			discard;
+		ALBEDO = mix(ALBEDO, vec3(0.27, 0.37, 0.48), scan * 0.30);
+		float glow = 0.0;
+		for (int index = 0; index < 8; index++) {
+			if (index >= uv_hint_count) { break; }
+			float radius = distance(world_point, uv_hints[index].xyz);
+			// A soft, round fluorescence hint represents light diffusing through
+			// a thin covering. Ordinary depth testing and solid foam stay intact.
+			glow = max(glow, (1.0 - smoothstep(0.04, 0.22, radius)) * uv_hints[index].w);
 		}
-		ALBEDO = mix(ALBEDO, vec3(0.19, 0.43, 0.61), scan * 0.62);
-		EMISSION = vec3(0.015, 0.06, 0.10) * scan;
+		ALBEDO = mix(ALBEDO, vec3(0.13, 0.65, 0.51), glow * 0.65);
+		EMISSION = vec3(0.04, 0.65, 0.42) * glow * 1.4;
 	}
 }

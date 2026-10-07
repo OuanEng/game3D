@@ -7,21 +7,44 @@ signal game_ended(won: bool)
 signal wallet_changed(credits: int)
 signal upgrade_bought(id: String)
 const UPGRADES := {
-	"uv": {"name": "UV flashlight", "cost": 25, "description": "Reveal blue-green glints below a thin layer of foam in the beam."},
+	"uv": {"name": "Balanced UV flashlight", "cost": 25, "description": "Brighter glows per level; only under thin foam. Never increases scan depth."},
 	"detector": {"name": "Pearl sonar", "cost": 20, "description": "Follow faster beeps as you approach remaining pearls."},
-	"scoop": {"name": "Wide excavation scoop", "cost": 35, "description": "Scoop radius 0.48 to 0.75 m; depth 0.18 to 0.30 m per click."},
-	"bucket": {"name": "Large portable foam bucket", "cost": 40, "description": "Capacity 0.22 to 0.50 cubic metres (220 to 500 foam litres)."},
-	"auto_washer": {"name": "Portable auto-washer", "cost": 50, "description": "Rinse the held pearl automatically while you walk."}
+	"scoop": {"name": "Heavy-duty scoop", "cost": 35, "description": "First level: radius 0.75 m, depth 0.30 m. Later levels expand both."},
+	"bucket": {"name": "Portable foam bucket", "cost": 40, "description": "Replace your 12-litre hand carry with 500 litres of foam storage."},
+	"auto_washer": {"name": "Washing conveyor", "cost": 150, "description": "E loads the belt or retrieves from the clean tray. Each level adds buffer space and 35% base washing speed."},
+	"gloves": {"name": "Rapid digging gloves", "cost": 80, "description": "Reduce excavation cooldown."},
+	"blower": {"name": "Industrial blower", "cost": 250, "description": "Slot 4: disperse a wide surface layer; no disposal income."},
+	"vacuum": {"name": "Foam vacuum", "cost": 400, "description": "Slot 5: continuously transfer foam into your carry storage."},
+	"boots": {"name": "Carry speed boots", "cost": 120, "description": "Faster movement and reduced load penalty."},
+	"battery": {"name": "Flashlight battery", "cost": 100, "description": "Longer UV charge and brighter work light. Recharges while UV is off."},
+	"grabber": {"name": "Magnetized grabber", "cost": 180, "description": "Extend pickup ray reach; walls still block it."},
+	"delay": {"name": "Boss distraction", "cost": 200, "description": "Add two minutes to this shift."}
 }
 # Match Tools.Tool: the scoop is free; UV and detector must be purchased.
-const TOOL_UPGRADES := ["", "uv", "detector"]
-@export var starting_credits: int = 60
+const TOOL_UPGRADES := ["", "uv", "detector", "blower", "vacuum"]
+@export var starting_credits: int = 0
 @export var pearl_reward: int = 25
 var credits: int = 0
 var owned: Dictionary = {}
+var debug_infinite_bucket: bool = false
+enum Mode { NORMAL, HARDCORE }
+var mode: Mode = Mode.NORMAL
+@export var hardcore_seconds: float = 600.0
+
+func is_hardcore() -> bool:
+	return mode == Mode.HARDCORE
+
+func select_mode(value: Mode) -> void:
+	# Select before the intro starts. Running shifts cannot change rules midway.
+	if phase != Phase.INTRO:
+		return
+	mode = value
+	owned.clear()
+	debug_infinite_bucket = false
+	remaining = hardcore_seconds if is_hardcore() else boss_arrival_seconds
 enum Phase { INTRO, PLAYING, WON, LOST }
 var phase: Phase = Phase.INTRO
-@export var boss_arrival_seconds: float = 300.0
+@export var boss_arrival_seconds: float = 900.0
 var remaining: float
 var total: int = 0
 var collected: int = 0
@@ -35,17 +58,38 @@ func prepare(pearls: Array[Pearl]) -> void:
 	collected = 0
 	credits = starting_credits
 	owned.clear()
-	remaining = boss_arrival_seconds
+	debug_infinite_bucket = false
+	remaining = hardcore_seconds if is_hardcore() else boss_arrival_seconds
 	running = false
 	phase = Phase.INTRO
 	progress_changed.emit(collected, total)
 	wallet_changed.emit(credits)
 
 func get_upgrade_catalog() -> Dictionary:
-	return UPGRADES.duplicate(true)
+	var catalog := UPGRADES.duplicate(true)
+	for id in catalog:
+		catalog[id]["name"] = tr(catalog[id]["name"])
+		catalog[id]["description"] = tr(catalog[id]["description"])
+		catalog[id]["cost"] = upgrade_price(id)
+		catalog[id]["name"] += "  [%d/%d]" % [level(id), max_level(id)]
+	return catalog
+
+func level(id: String) -> int:
+	if is_hardcore():
+		return 0 # Also blocks stale ownership data from granting equipment effects.
+	return int(owned.get(id, 0))
+
+func max_level(id: String) -> int:
+	return 1 if id in ["detector", "blower", "vacuum"] else 5
+
+func upgrade_price(id: String) -> int:
+	if not UPGRADES.has(id):
+		return 0
+	# Bounded levels prevent overflow. Each successive level costs 2.4x.
+	return int(ceil(float(UPGRADES[id]["cost"]) * pow(2.4, level(id))))
 
 func owns_upgrade(id: String) -> bool:
-	return owned.get(id, false)
+	return level(id) > 0
 
 func owns_tool(index: int) -> bool:
 	if index < 0 or index >= TOOL_UPGRADES.size():
@@ -53,14 +97,18 @@ func owns_tool(index: int) -> bool:
 	return index == 0 or owns_upgrade(TOOL_UPGRADES[index])
 
 func buy_upgrade(id: String) -> bool:
-	# The store UI is not trusted to enforce cost, phase, or duplicate-purchase rules.
-	if not running or remaining <= 0.0 or not UPGRADES.has(id) or owns_upgrade(id):
+	if is_hardcore():
 		return false
-	var cost: int = UPGRADES[id]["cost"]
+	# The store UI is not trusted to enforce cost, phase, or duplicate-purchase rules.
+	if not running or remaining <= 0.0 or not UPGRADES.has(id) or level(id) >= max_level(id):
+		return false
+	var cost: int = upgrade_price(id)
 	if credits < cost:
 		return false
 	credits -= cost
-	owned[id] = true
+	owned[id] = level(id) + 1
+	if id == "delay":
+		remaining += 120.0
 	wallet_changed.emit(credits)
 	upgrade_bought.emit(id)
 	return true

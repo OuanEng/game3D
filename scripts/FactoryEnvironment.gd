@@ -10,6 +10,15 @@ var pallet: Node3D
 func _ready() -> void:
 	build_lighting()
 	build_structure()
+	var glass := MeshInstance3D.new()
+	var pane := QuadMesh.new()
+	pane.size = Vector2(7.0, 3.0)
+	glass.mesh = pane
+	glass.position = Vector3(1, 5.2, -11.85)
+	var rain := ShaderMaterial.new()
+	rain.shader = preload("res://shaders/RainGlass.gdshader")
+	glass.material_override = rain
+	add_child(glass)
 	var hum := AudioStreamPlayer.new()
 	hum.name = "VentilationHum"
 	hum.stream = SoundBank.tone(60.0, 1.0, true)
@@ -30,7 +39,7 @@ func build_lighting() -> void:
 	if RenderingServer.get_current_rendering_method() == "forward_plus":
 		environment.volumetric_fog_enabled = true
 		environment.volumetric_fog_density = 0.018
-		environment.volumetric_fog_length = 24.0
+		environment.volumetric_fog_length = 36.0
 		environment.volumetric_fog_albedo = Color(0.66, 0.74, 0.83)
 		environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 		environment.ssao_enabled = true
@@ -47,14 +56,18 @@ func build_lighting() -> void:
 	moon.light_color = Color(0.42, 0.56, 0.85)
 	moon.light_energy = 0.12
 	moon.shadow_enabled = true
+	moon.shadow_bias = 0.15
+	moon.shadow_normal_bias = 1.5
+	moon.directional_shadow_max_distance = 36.0
 	add_child(moon)
-	spot("WorkbenchLamp", Vector3(0, 4.2, 1.4), Vector3(0, 0.9, -0.8), Color(1.0, 0.82, 0.58), 4.0, 48.0, true)
-	spot("RinseLamp", Vector3(-3.1, 3.5, 0.3), Vector3(-3.1, 1, -0.4), Color(0.64, 0.82, 1.0), 2.5, 38.0, false)
-	spot("VelvetLamp", Vector3(3.1, 3.5, 0.3), Vector3(3.1, 1, -0.4), Color(1.0, 0.79, 0.5), 2.5, 38.0, false)
-	flickering_light = spot("AisleFluorescent", Vector3(-3, 4.5, -4.5), Vector3(-3, 0, -4.3), Color(0.7, 0.85, 0.82), 1.3, 55.0, false)
+	spot("WorkbenchLamp", Vector3(0, 7.7, 3.5), Vector3(0, 1.8, -1), Color(1.0, 0.82, 0.58), 5.0, 54.0, true)
+	spot("RinseLamp", Vector3(-7.5, 5.0, 6.5), Vector3(-7.5, 1, 6), Color(0.64, 0.82, 1.0), 2.5, 38.0, false)
+	spot("VelvetLamp", Vector3(4, 5.0, 6.5), Vector3(4, 1, 6), Color(1.0, 0.79, 0.5), 2.5, 38.0, false)
+	spot("RearFoamLamp", Vector3(3, 7.8, -6.5), Vector3(0, 2, -3), Color(0.58, 0.70, 0.85), 2.0, 52.0, false)
+	flickering_light = spot("AisleFluorescent", Vector3(-7.8, 7.8, -7.8), Vector3(-7.8, 0, -7.5), Color(0.7, 0.85, 0.82), 1.3, 55.0, false)
 	# A flickering source should not leave temporal trails in volumetric fog.
 	flickering_light.light_volumetric_fog_energy = 0.0
-	var fixture := Props.box(self, Vector3(-3, 4.48, -4.5), Vector3(2.1, 0.08, 0.2), Color(0.7, 0.86, 0.81), false)
+	var fixture := Props.box(self, Vector3(-7.8, 7.78, -7.8), Vector3(2.1, 0.08, 0.2), Color(0.7, 0.86, 0.81), false)
 	fluorescent_material = (fixture.get_child(0) as MeshInstance3D).material_override
 	fluorescent_material.emission_enabled = true
 	fluorescent_material.emission = Color(0.7, 0.86, 0.81)
@@ -66,35 +79,44 @@ func spot(label: String, at: Vector3, target: Vector3, color: Color, energy: flo
 	light.position = at
 	light.light_color = color
 	light.light_energy = energy
-	light.spot_range = 9.0
+	light.spot_range = 15.0
 	light.spot_angle = angle
 	light.shadow_enabled = shadows
+	# The broad, smooth heightfield otherwise self-shadows in concentric
+	# bands under a grazing spot. Bias the map, retaining real prop shadows.
+	light.shadow_bias = 0.2
+	light.shadow_normal_bias = 2.0
 	add_child(light)
 	light.look_at(target)
 	return light
 
 func build_structure() -> void:
 	var steel := Color(0.12, 0.17, 0.2)
-	Props.box(self, Vector3(0, -0.15, 0), Vector3(16, 0.3, 14), Color(0.18, 0.2, 0.21))
-	Props.box(self, Vector3(0, 2.7, -7), Vector3(16, 5.4, 0.2), Color(0.14, 0.19, 0.22))
-	Props.box(self, Vector3(0, 2.7, 7), Vector3(16, 5.4, 0.2), steel)
-	for x in [-8, 8]:
-		Props.box(self, Vector3(x, 2.7, 0), Vector3(0.2, 5.4, 14), steel)
-	for z in [-6, -2, 3, 6]:
-		for x in [-6.8, 6.8]:
-			Props.box(self, Vector3(x, 2.6, z), Vector3(0.22, 5.2, 0.3), steel)
-		Props.box(self, Vector3(0, 5.1, z), Vector3(14, 0.3, 0.25), steel)
+	# Unit-scale 24 m warehouse: clear side/rear aisles and a broad front
+	# service corridor prevent the enlarged heightfield swallowing stations.
+	Props.box(self, Vector3(0, -0.15, 0), Vector3(24, 0.3, 24), Color(0.18, 0.2, 0.21))
+	Props.box(self, Vector3(0, 4.25, -12), Vector3(24, 8.5, 0.2), Color(0.14, 0.19, 0.22))
+	Props.box(self, Vector3(0, 4.25, 12), Vector3(24, 8.5, 0.2), steel)
+	for x in [-12, 12]:
+		Props.box(self, Vector3(x, 4.25, 0), Vector3(0.2, 8.5, 24), steel)
+	for z in [-10, -5, 1, 7, 10]:
+		for x in [-10.5, 10.5]:
+			Props.box(self, Vector3(x, 4.1, z), Vector3(0.22, 8.2, 0.3), steel)
+		Props.box(self, Vector3(0, 8.15, z), Vector3(21.2, 0.3, 0.25), steel)
 	# Split roof leaves a narrow skylight for the cool directional source.
-	for x in [-4.65, 4.65]:
-		Props.box(self, Vector3(x, 5.4, 0), Vector3(6.7, 0.15, 14), steel)
-	for x in [-4.5, 0.0, 4.5]:
-		build_shelf(Vector3(x, 0, -5.8))
-	for x in [-2.05, 2.05]:
-		Props.box(self, Vector3(x, 0.012, -0.5), Vector3(0.045, 0.015, 4.0), Color(0.7, 0.49, 0.12), false)
-	Props.sign_at(self, "NIGHT SHIFT / PACKING BAY 07", Vector3(0, 3.5, -6.85))
+	for x in [-6.75, 6.75]:
+		Props.box(self, Vector3(x, 8.5, 0), Vector3(10.5, 0.15, 24), steel)
+	for x in [-7.5, -2.5, 2.5, 7.5]:
+		build_shelf(Vector3(x, 0, -10.4))
+	# Safety stripes mark the walkable service aisle rather than disappearing
+	# beneath the foam. Front stations face the entrance/player spawn.
+	for x in [-7.4, 7.4]:
+		Props.box(self, Vector3(x, 0.012, -1.6), Vector3(0.045, 0.015, 11.6), Color(0.7, 0.49, 0.12), false)
+	Props.box(self, Vector3(0, 0.012, 4.6), Vector3(15, 0.015, 0.045), Color(0.7, 0.49, 0.12), false)
+	Props.sign_at(self, "NIGHT SHIFT / PACKING BAY 07", Vector3(0, 6.7, -11.85))
 	pallet = Node3D.new()
 	pallet.name = "LoosePallet"
-	pallet.position = Vector3(0, 0, -2.7)
+	pallet.position = Vector3(-8.6, 0, -3.0)
 	add_child(pallet)
 	for index in range(5):
 		Props.box(pallet, Vector3(-0.65 + index * 0.32, 0.15, 0), Vector3(0.24, 0.13, 1.1), Color(0.35, 0.25, 0.15), false)

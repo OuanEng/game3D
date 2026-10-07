@@ -4,7 +4,7 @@ extends Node3D
 signal finished
 @export var duration: float = 11.0
 var player: Player
-var barn: BarnEnvironment
+var barn: Node3D
 var pearls: Array[Pearl] = []
 var camera: Camera3D
 var animator: AnimationPlayer
@@ -31,11 +31,12 @@ func _ready() -> void:
 	add_child(proxies)
 	pallet_start = barn.pallet.position
 	snap = AudioStreamPlayer.new()
-	snap.stream = SoundBank.tone(1700, 0.055)
+	snap.stream = SoundBank.tone(110, 0.18)
 	snap.volume_db = -18
 	add_child(snap)
 	build_overlay()
 	build_animation()
+	proxies.hide()
 
 func build_overlay() -> void:
 	overlay = CanvasLayer.new()
@@ -57,7 +58,7 @@ func build_overlay() -> void:
 	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	caption.add_theme_font_size_override("font_size", 22)
 	var heading := Label.new()
-	heading.text = "02:13 AM  /  THE OLD GRAIN BARN                                      SPACE · skip intro"
+	heading.text = "02:13 AM  /  PACKING WAREHOUSE                                      SPACE · skip intro"
 	heading.position = Vector2(28, 22)
 	overlay.add_child(heading)
 
@@ -73,11 +74,11 @@ func view_rotation(at: Vector3, target: Vector3) -> Vector3:
 func build_animation() -> void:
 	var clip := Animation.new()
 	clip.length = maxf(duration, 9.0)
-	var views := [Vector3(5.5, 4.5, 7), Vector3(0.35, 4.1, -2.8), Vector3(0.55, 4.0, -2.6), Vector3(0, 4.2, 4.8), player.camera.global_position]
+	var views := [Vector3(9, 6.5, 9.5), Vector3(0.35, 6.4, 1.2), Vector3(0.55, 6.3, 1.4), Vector3(0, 5.7, 6.8), player.camera.global_position]
 	var times := [0.0, 2.8, 3.2, 7.5, clip.length]
 	var rotations: Array = []
 	for index in range(views.size()):
-		rotations.append(view_rotation(views[index], Vector3(0, 3.6, -4.5) if index < 3 else Vector3(0, 1.5, -1)))
+		rotations.append(view_rotation(views[index], Vector3(0, 5.3, -1.6) if index < 3 else Vector3(0, 2.0, -1.6)))
 	# End on precisely the gameplay camera pose to avoid a jarring cut.
 	rotations[rotations.size() - 1] = player.camera.global_rotation
 	add_keys(clip, ^"Camera3D:position", times, views)
@@ -91,7 +92,7 @@ func build_animation() -> void:
 	ring.outer_radius = 0.435
 	strand.mesh = ring
 	strand.material_override = Props.material(Color(0.71, 0.51, 0.24), 0.7)
-	strand.position = Vector3(0, 3.8, -4.5)
+	strand.position = Vector3(0, 5.5, -1.6)
 	strand.rotation.x = PI / 2.0
 	strand.scale.z = 0.33
 	proxies.add_child(strand)
@@ -107,7 +108,7 @@ func build_animation() -> void:
 		bead.material_override = Props.material(Color(1.0, 0.92, 0.78), 0.25)
 		proxies.add_child(bead)
 		var angle := TAU * index / pearls.size()
-		var start := Vector3(cos(angle) * 0.43, 3.8 + sin(angle) * 0.14, -4.5)
+		var start := Vector3(cos(angle) * 0.43, 5.5 + sin(angle) * 0.14, -1.6)
 		var destination := to_local(pearls[index].global_position)
 		var apex := start.lerp(destination, 0.5) + Vector3(0, 1.0 + index * 0.03, 0)
 		add_keys(clip, NodePath("Necklace/Bead%d:position" % index), [0.0, 3.0, 3.55 + index * 0.025, 4.6 + index * 0.05], [start, start, apex, destination])
@@ -116,6 +117,8 @@ func build_animation() -> void:
 	animator.add_animation_library("", library)
 
 func play() -> void:
+	proxies.show()
+	overlay.show()
 	camera.make_current()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	animator.play("intro")
@@ -125,17 +128,19 @@ func _process(_delta: float) -> void:
 		return
 	var time := animator.current_animation_position
 	if time < 2.85:
-		caption.text = "One last job in the old grain barn. My hands will not stop shaking.\nThe boss trusted me with this necklace."
+		caption.text = "The night shift should have been quiet.\nThe boss's valuables and crucial machine parts are missing."
 	elif time < 5.5:
-		caption.text = "The chain catches on a splinter. I pull. The clasp snaps.\nEight pearls vanish into a mountain of packing foam."
+		caption.text = "A pallet tips. The necklace snaps.\nEverything disappears into the packaging foam."
 	else:
-		caption.text = "Five minutes before the boss arrives. Sixty credits in my pocket.\nUse the supply desk. Find, rinse, and return every pearl."
+		caption.text = "Fifteen minutes until morning rounds. No tools, no credits.\nDig by hand, dump foam, buy equipment. Find, rinse and return every item."
+		if player.manager.is_hardcore():
+			caption.text = "Ten minutes. Bare hands only. The supply desk is closed.\nDig, carry, rinse by hand and return every item before the boss arrives."
 	if time >= 3.0 and not snap_played:
 		snap_played = true
 		snap.play()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not finished_once and event.is_action_pressed("skip_intro"):
+	if not finished_once and animator.is_playing() and event.is_action_pressed("skip_intro"):
 		get_viewport().set_input_as_handled()
 		complete()
 

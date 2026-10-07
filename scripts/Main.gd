@@ -7,17 +7,25 @@ var hint: Label
 var result: Label
 var detector: ProgressBar
 var pearls: Array[Pearl] = []
-var barn: BarnEnvironment
+var barn: FactoryEnvironment
 var foam_mesh: FoamMesh
 var intro: IntroCutscene
 var hud: CanvasLayer
 var shop: UpgradeUI
 var loadout: Label
-const TOOL_NAMES := ["Scoop", "UV", "Detector"]
+const TOOL_NAMES := ["Hands / Scoop", "UV", "Detector"]
 var bucket_status: Label
+var menus: CanvasLayer
+var minimal_hud: Control
+var settings: Node
 
 func _ready() -> void:
+	preload("res://scripts/Localization.gd").install()
 	setup_input()
+	settings = preload("res://scripts/SettingsManager.gd").new()
+	settings.name = "SettingsManager"
+	settings.world = self
+	add_child(settings)
 	manager = GameManager.new()
 	manager.name = "GameManager"
 	add_child(manager)
@@ -27,7 +35,7 @@ func _ready() -> void:
 	player.name = "Player"
 	player.manager = manager
 	player.pile = foam_mesh
-	player.position = Vector3(0, 0, 5.5)
+	player.position = Vector3(0, 0, 7.8)
 	add_child(player)
 	shop = UpgradeUI.new()
 	shop.name = "StoreUI"
@@ -43,10 +51,35 @@ func _ready() -> void:
 	intro.pearls = pearls
 	add_child(intro)
 	intro.finished.connect(manager.begin_search)
-	intro.play()
+	intro.overlay.hide()
+	menus = preload("res://scripts/MenuManager.gd").new()
+	menus.world = self
+	add_child(menus)
+	var music := preload("res://scripts/AmbientMusic.gd").new()
+	add_child(music)
+	minimal_hud = preload("res://scripts/MinimalHUD.gd").new()
+	minimal_hud.world = self
+	hud.add_child(minimal_hud)
+	var debug_panel := preload("res://scripts/DebugPanel.gd").new()
+	debug_panel.name = "DebugPanel"
+	debug_panel.world = self
+	add_child(debug_panel)
+	settings.apply_to_world()
 
 func setup_input() -> void:
-	var bindings := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": KEY_D, "interact": KEY_E, "drop": KEY_G, "restart": KEY_R, "skip_intro": KEY_SPACE, "mute": KEY_M, "toggle_flicker": KEY_F, "tool_1": KEY_1, "tool_2": KEY_2, "tool_3": KEY_3}
+	for slot in [4, 5]:
+		var action := "tool_%d" % slot
+		if not InputMap.has_action(action):
+			InputMap.add_action(action)
+			var key := InputEventKey.new()
+			key.physical_keycode = KEY_4 if slot == 4 else KEY_5
+			InputMap.action_add_event(action, key)
+	if not InputMap.has_action("jump"):
+		InputMap.add_action("jump")
+		var jump_key := InputEventKey.new()
+		jump_key.physical_keycode = KEY_SPACE
+		InputMap.action_add_event("jump", jump_key)
+	var bindings := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": KEY_D, "interact": KEY_E, "dump_foam": KEY_Q, "drop": KEY_G, "throw_item": KEY_F, "restart": KEY_R, "skip_intro": KEY_SPACE, "mute": KEY_M, "toggle_flicker": KEY_F6, "tool_1": KEY_1, "tool_2": KEY_2, "tool_3": KEY_3}
 	for action in bindings:
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
@@ -60,20 +93,25 @@ func setup_input() -> void:
 		InputMap.action_add_event("brush", event)
 
 func build_room() -> void:
-	barn = BarnEnvironment.new()
-	barn.name = "Barn"
+	barn = FactoryEnvironment.new()
+	barn.name = "FactoryWorld"
 	add_child(barn)
-	build_station(Vector3(-5, 0, 3), Station.Kind.WASH, Color(0.15, 0.45, 0.58), "RINSE / HOLD E")
-	build_station(Vector3(5, 0, 3), Station.Kind.DISPLAY, Color(0.15, 0.035, 0.07), "VELVET BOX / E")
+	build_station(Vector3(-7.5, 0, 6), Station.Kind.WASH, Color(0.15, 0.45, 0.58), "WASH ITEMS / HOLD E")
+	build_station(Vector3(4, 0, 6), Station.Kind.DISPLAY, Color(0.15, 0.035, 0.07), "RETURN ITEMS / E")
 	var store := UpgradeStore.new()
 	store.name = "UpgradeStore"
-	store.position = Vector3(7, 0, 5)
+	store.position = Vector3(8.5, 0, 6.5)
 	add_child(store)
 	var waste := WasteBin.new()
 	waste.name = "WasteBin"
-	waste.position = Vector3(-7, 0, 5)
+	waste.position = Vector3(-3.5, 0, 6)
 	add_child(waste)
-	barn.hanging_lamp("WasteLamp", Vector3(-7, 4.5, 5), Vector3(-7, 0.8, 5), Color(0.77, 0.93, 0.66), 2.1, 37.0, false)
+	var waste_light := OmniLight3D.new()
+	waste_light.name = "WasteLamp"
+	waste_light.position = waste.position + Vector3(0, 3, 0)
+	waste_light.light_color = Color(0.77, 0.93, 0.66)
+	waste_light.omni_range = 6.0
+	barn.add_child(waste_light)
 
 func build_station(at: Vector3, kind: Station.Kind, color: Color, caption: String) -> void:
 	Props.box(self, at + Vector3(0, 0.5, 0), Vector3(1.6, 1.0, 1.1), Color(0.12, 0.2, 0.25))
@@ -89,6 +127,12 @@ func build_station(at: Vector3, kind: Station.Kind, color: Color, caption: Strin
 	station.kind = kind
 	station.position = at + Vector3(0, 1.07, 0)
 	add_child(station)
+	var task_light := OmniLight3D.new()
+	task_light.position = at + Vector3(0, 2.5, 0.5)
+	task_light.omni_range = 4.5
+	task_light.light_energy = 1.3
+	task_light.light_color = Color(0.55, 0.85, 1.0) if kind == Station.Kind.WASH else Color(1.0, 0.78, 0.45)
+	add_child(task_light)
 	Props.sign_at(self, caption, at + Vector3(0, 1.8, -0.4))
 	if kind == Station.Kind.DISPLAY:
 		for x in [-0.73, 0.73]:
@@ -98,6 +142,9 @@ func build_station(at: Vector3, kind: Station.Kind, color: Color, caption: Strin
 
 func build_foam_and_pearls() -> void:
 	foam_mesh = FoamMesh.new()
+	var grid: Vector2i = settings.mesh_grid()
+	foam_mesh.columns = grid.x
+	foam_mesh.rows = grid.y
 	foam_mesh.name = "FoamMesh"
 	add_child(foam_mesh)
 	pearls = foam_mesh.pearls
@@ -112,7 +159,7 @@ func build_ui() -> void:
 	status.add_theme_font_size_override("font_size", 24)
 	layer.add_child(status)
 	var controls := Label.new()
-	controls.text = "WASD move  /  LMB click: scoop, hold: scan  /  E retrieve, rinse, place, shop, dump\n1–3 or wheel: tools  /  G drop pearl  /  R restart  /  Esc cursor  /  M mute  /  F flicker"
+	controls.text = "WASD move / Space jump / LMB dig or scan / E interact\n1–5 tools / Q dump foam / G drop item / R restart / Esc pause"
 	controls.position = Vector2(28, 80)
 	layer.add_child(controls)
 	loadout = Label.new()
@@ -156,7 +203,7 @@ func build_ui() -> void:
 func _process(_delta: float) -> void:
 	hud.visible = manager.phase != GameManager.Phase.INTRO and not player.store_open
 	var seconds := int(ceil(manager.remaining))
-	status.text = "PEARL PANIC / THE BARN  |  %d / %d returned  |  Boss %02d:%02d  |  %d credits" % [manager.collected, manager.total, seconds / 60, seconds % 60, manager.credits]
+	status.text = tr("NIGHT SHIFT | %d / %d items | Boss %02d:%02d | %d credits") % [manager.collected, manager.total, seconds / 60, seconds % 60, manager.credits]
 	var slots := PackedStringArray()
 	for index in range(3):
 		var label: String = "%d %s" % [index + 1, TOOL_NAMES[index]]
@@ -166,15 +213,22 @@ func _process(_delta: float) -> void:
 			label = "[ " + label + " ]"
 		slots.append(label)
 	loadout.text = "   ".join(slots)
-	bucket_status.text = "BUCKET  %d / %d L   —   dump at the green-lit waste bin" % [roundi(player.bucket_load * 1000), roundi(player.bucket_capacity() * 1000)]
+	var capacity_text := "∞" if manager.debug_infinite_bucket else str(roundi(player.bucket_capacity() * 1000))
+	bucket_status.text = tr("BUCKET  %d / %s L   —   dump at the green-lit waste bin") % [roundi(player.bucket_load * 1000), capacity_text]
+	if not manager.owns_upgrade("bucket"):
+		bucket_status.text = tr("HANDS %d / 12 L — dump foam to earn bucket money") % roundi(player.bucket_load * 1000)
 	bucket_status.modulate = Color(1, 0.58, 0.28) if player.bucket_load >= player.bucket_capacity() - 0.000001 else Color(0.75, 0.87, 0.85)
 	hint.text = player.prompt if manager.running else "R • play again"
 	if player.held != null and manager.running:
-		hint.text += "\nHeld pearl: %d%% clean" % int((1.0 - player.held.residue) * 100)
+		hint.text += tr("\n%s: %d%% clean") % [player.held.localized_name(), int((1.0 - player.held.residue) * 100)]
 	detector.visible = manager.running and player.tools.selected_tool == 2
 	detector.value = player.detector_strength * 100.0
 	detector.modulate = Color(0.4, 1.0, 0.8, 0.65 + 0.35 * sin(Time.get_ticks_msec() * 0.001 * lerpf(3.0, 18.0, player.detector_strength)))
+	# Keep legacy HUD references for scene compatibility, but render only icons.
+	for child in hud.get_children():
+		if child is CanvasItem:
+			child.visible = child == minimal_hud
 
 func on_game_ended(won: bool) -> void:
-	result.text = "EVERY PEARL ACCOUNTED FOR.\nFootsteps in the aisle. Close the box. Act normal." if won else "THE SUPERVISOR IS HERE.\n%d of %d pearls returned. That will be a long conversation." % [manager.collected, manager.total]
+	result.text = tr("EVERY PEARL ACCOUNTED FOR.\nFootsteps in the aisle. Close the box. Act normal.") if won else tr("THE SUPERVISOR IS HERE.\n%d of %d pearls returned. That will be a long conversation.") % [manager.collected, manager.total]
 

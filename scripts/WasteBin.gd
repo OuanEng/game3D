@@ -5,6 +5,7 @@ extends StaticBody3D
 ## never empties the bucket automatically when the player walks nearby.
 
 func _ready() -> void:
+	add_to_group("waste_bins")
 	collision_layer = 16 # Layer 5: interaction targets.
 	collision_mask = 0
 	# The target extends just in front of the rim, so the world-layer bin walls
@@ -31,7 +32,7 @@ func _ready() -> void:
 	Props.box(self, Vector3(0.96, 1.40, 0), Vector3(0.18, 0.10, 1.56), rim, false)
 	Props.box(self, Vector3(0, 1.40, -0.72), Vector3(1.9, 0.10, 0.15), rim, false)
 	Props.box(self, Vector3(0, 1.40, 0.72), Vector3(1.9, 0.10, 0.15), rim, false)
-	Props.sign_at(self, "FOAM WASTE\nE / EMPTY BUCKET", Vector3(0, 2.03, 0.12))
+	Props.sign_at(self, "FOAM WASTE\nQ / EMPTY FOAM", Vector3(0, 2.03, 0.12))
 	var lamp := OmniLight3D.new()
 	lamp.name = "WasteMarkerLight"
 	lamp.position = Vector3(0, 2.15, 0.25)

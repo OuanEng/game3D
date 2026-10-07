@@ -2,6 +2,7 @@ class_name Pearl
 extends RigidBody3D
 ## State transitions keep held/collected bodies out of the physics simulation.
 enum State { EMBEDDED, EXPOSED, FREE, HELD, COLLECTED }
+const RADIUS: float = 0.095
 var state: State = State.EMBEDDED
 var residue: float = 1.0
 var home: Vector3
@@ -9,27 +10,41 @@ var surface: ShaderMaterial
 var uv_strength: float = 0.0
 var holder: Node3D
 var foam_container: Node3D
+var item_name: String = "Boss's pearl"
+var item_kind: int = 0
+
+func localized_name() -> String:
+	return tr(item_name)
 
 func _ready() -> void:
 	add_to_group("pearls")
 	collision_layer = 4
 	collision_mask = 13 # World, pearls and the continuous foam surface.
 	mass = 0.08
+	physics_material_override = PhysicsMaterial.new()
+	physics_material_override.friction = 0.45
+	physics_material_override.bounce = 0.08
 	continuous_cd = true
 	freeze = true
 	home = global_position
 	var mesh := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
-	sphere.radius = 0.095
-	sphere.height = 0.19
+	sphere.radius = RADIUS
+	sphere.height = RADIUS * 2.0
+	sphere.radial_segments = 24
+	sphere.rings = 12
 	mesh.mesh = sphere
+	# Every target has the same round render/physics footprint. The item kind
+	# changes its finish only, so detection and rolling remain consistent.
 	surface = ShaderMaterial.new()
 	surface.shader = preload("res://shaders/PearlUV.gdshader")
+	surface.set_shader_parameter("item_kind", clampi(item_kind, 0, 2))
+	surface.set_shader_parameter("item_tint", [Color(1.0, 0.94, 0.79), Color(0.65, 0.40, 0.12), Color(0.16, 0.20, 0.23)][clampi(item_kind, 0, 2)])
 	mesh.material_override = surface
 	add_child(mesh)
 	var collider := CollisionShape3D.new()
 	var shape := SphereShape3D.new()
-	shape.radius = 0.095
+	shape.radius = RADIUS
 	collider.shape = shape
 	add_child(collider)
 
@@ -73,8 +88,8 @@ func terrain_clears_bottom() -> bool:
 	if not is_instance_valid(foam_container) or not foam_container.has_method("sample_height"):
 		return true
 	# Check the footprint as well as the centre, since an excavated rim may be steep.
-	for offset in [Vector3.ZERO, Vector3(0.095, 0, 0), Vector3(-0.095, 0, 0), Vector3(0, 0, 0.095), Vector3(0, 0, -0.095)]:
-		if foam_container.sample_height(global_position + offset) > global_position.y - 0.10:
+	for offset in [Vector3.ZERO, Vector3(RADIUS, 0, 0), Vector3(-RADIUS, 0, 0), Vector3(0, 0, RADIUS), Vector3(0, 0, -RADIUS)]:
+		if foam_container.sample_height(global_position + offset) > global_position.y - RADIUS - 0.005:
 			return false
 	return true
 

@@ -35,6 +35,6 @@ static func sign_at(parent: Node3D, text: String, at: Vector3) -> void:
 	label.text = text
 	label.position = at
 	label.font_size = 48
-	label.pixel_size = 0.006
+	label.pixel_size = 0.0025
 	label.no_depth_test = false
 	parent.add_child(label)
