@@ -12,6 +12,7 @@ func check(condition: bool, description: String) -> void:
 		push_error(description)
 
 func run() -> void:
+	preload("res://scripts/StageManager.gd").selected_stage = 3
 	var world := Node3D.new()
 	root.add_child(world)
 	var pile := FoamMesh.new()

@@ -17,7 +17,7 @@ func run() -> void:
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png("res://.runtime/capacity-full.png")
 	scene.player.set_physics_process(false)
-	scene.manager.credits = 100
+	scene.manager.credits = 1000
 	scene.manager.buy_upgrade("uv")
 	var item: Pearl = scene.pearls[0]
 	var original := item.global_position

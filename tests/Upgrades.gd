@@ -19,8 +19,8 @@ func run() -> void:
 	manager.credits = 1000000
 	for id in manager.UPGRADES:
 		check(manager.buy_upgrade(id), "Purchase " + id)
-	check(manager.upgrade_price("bucket") == 96, "Exponential price after first level")
-	check(manager.buy_upgrade("bucket") and is_equal_approx(player.bucket_capacity(), 0.8), "Capacity level two")
+	check(manager.upgrade_price("bucket") == 111, "Exponential price after first level")
+	check(manager.buy_upgrade("bucket") and is_equal_approx(player.bucket_capacity(), 0.14), "Capacity level two")
 	check(not manager.buy_upgrade("detector"), "Single unlock cannot be repurchased")
 	check(manager.buy_upgrade("uv") and manager.level("uv") == 2, "UV intensity can be upgraded")
 	check(player.effective_pickup_reach() > player.reach, "Grabber increases reach")

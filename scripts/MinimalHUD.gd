@@ -6,6 +6,7 @@ var ink := Color(0.8, 0.9, 0.88, 0.8)
 var accent := Color(0.48, 0.85, 0.73)
 var capacity_bar: ProgressBar
 var capacity_label: Label
+var stage_hint: Label
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -27,21 +28,35 @@ func _ready() -> void:
 	add_child(capacity_bar)
 	capacity_bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
 	capacity_bar.offset_left = 28
-	capacity_bar.offset_right = 40
-	capacity_bar.offset_top = -105
-	capacity_bar.offset_bottom = 105
+	capacity_bar.offset_right = 48
+	capacity_bar.offset_top = -130
+	capacity_bar.offset_bottom = 130
 	capacity_label = Label.new()
 	capacity_label.name = "CapacityReadout"
 	add_child(capacity_label)
 	capacity_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
 	capacity_label.offset_left = 23
 	capacity_label.offset_right = 83
-	capacity_label.offset_top = 118
-	capacity_label.offset_bottom = 155
-	capacity_label.add_theme_font_size_override("font_size", 13)
+	capacity_label.offset_top = 140
+	capacity_label.offset_bottom = 190
+	capacity_label.add_theme_font_size_override("font_size", 18)
 	capacity_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
+	stage_hint = Label.new()
+	add_child(stage_hint)
+	stage_hint.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	stage_hint.offset_left = 180
+	stage_hint.offset_right = -180
+	stage_hint.offset_top = 70
+	stage_hint.offset_bottom = 160
+	stage_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stage_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stage_hint.add_theme_font_size_override("font_size", 21)
+	stage_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
 func _process(_delta: float) -> void:
+	stage_hint.text = world.settings.control_hint(tr(world.stages.event_message) if not world.stages.event_message.is_empty() else world.stages.tutorial_text())
+	stage_hint.visible = world.manager.running
 	var player: Player = world.player
 	var fill := clampf(player.bucket_load / player.bucket_capacity(), 0.0, 1.0)
 	capacity_bar.value = fill * 100.0
@@ -55,7 +70,7 @@ func _process(_delta: float) -> void:
 	fill_style.bg_color = Color(1.0, 0.65, 0.35) if fill >= 0.999 else accent
 	queue_redraw()
 
-func label_at(at: Vector2, text: String, font_size: int = 16) -> void:
+func label_at(at: Vector2, text: String, font_size: int = 19) -> void:
 	draw_string(ThemeDB.fallback_font, at, world.settings.control_hint(tr(text)), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, ink)
 
 func _draw() -> void:
@@ -72,18 +87,26 @@ func _draw() -> void:
 	if not m.running:
 		label_at(size * 0.5 - Vector2(200, 0), tr("SHIFT COMPLETE") if m.collected == m.total else tr("THE BOSS HAS ARRIVED"), 26)
 		label_at(size * 0.5 + Vector2(-110, 36), tr("R · Return to Main Menu"))
+		if m.phase == GameManager.Phase.WON and not m.is_hardcore():
+			label_at(size * 0.5 + Vector2(-200, 70), tr("Career saved · bonus $%d") % world.stages.data().bonus)
 		return
+	if p.detector_strength > 0:
+		var bearing := p.tools.detector_direction
+		var origin := size * 0.5 + Vector2(0, 50)
+		var tip := origin + Vector2(sin(bearing), -cos(bearing)) * 28
+		draw_line(origin, tip, accent, 4, true)
+		draw_circle(tip, 5, accent)
 	draw_circle(size * 0.5, 2, ink)
-	var start := Vector2(size.x * 0.5 - 164, size.y - 64)
+	var start := Vector2(size.x * 0.5 - 164, size.y - 70)
 	for i in range(5):
 		if m.is_hardcore() and i > 0:
 			continue
-		var at := start + Vector2(i * 48, 0)
+		var at := start + Vector2(i * 58, 0)
 		var color := accent if p.tools.selected_tool == i else ink
 		if not m.owns_tool(i):
 			color.a = 0.18
-		draw_style_box(slot_style(color, p.tools.selected_tool == i), Rect2(at, Vector2(40, 40)))
-		var center := at + Vector2(20, 18)
+		draw_style_box(slot_style(color, p.tools.selected_tool == i), Rect2(at, Vector2(48, 48)))
+		var center := at + Vector2(24, 22)
 		match i:
 			0: # Hand / scoop silhouette.
 				draw_line(center + Vector2(-8, 9), center + Vector2(5, -5), color, 3, true)
@@ -102,7 +125,7 @@ func _draw() -> void:
 				draw_arc(center, 10, 0, PI, 16, color, 2, true)
 				draw_line(center + Vector2(10, 0), center + Vector2(10, -10), color, 3)
 	# Capacity is displayed only by the left vertical bar.
-	var item_at := start + Vector2(304, 18)
+	var item_at := start + Vector2(320, 22)
 	draw_arc(item_at, 13, 0, TAU, 32, ink, 1.2, true)
 	if p.held != null:
 		var item_color := Color(0.8, 0.66, 0.4) if p.held.residue > 0 else accent

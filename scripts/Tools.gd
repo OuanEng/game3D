@@ -9,6 +9,7 @@ const UV_SAMPLE_STEP: float = 0.04
 const CONTINUOUS_CUT_INTERVAL: float = 0.10 # Limit mesh/collider rebuilds to 10 Hz.
 var selected_tool: int = Tool.SCOOP
 var detector_strength: float = 0.0
+var detector_direction := 0.0
 var player: Player
 var pile: FoamMesh
 var manager: GameManager
@@ -41,6 +42,8 @@ func select_tool(index: int) -> bool:
 	if index < Tool.SCOOP or index > Tool.VACUUM or not manager.owns_tool(index):
 		return false
 	_reset_effects()
+	if selected_tool != index:
+		player.get_parent().audio.one_shot("uv")
 	selected_tool = index
 	for model_index in range(_models.size()):
 		_models[model_index].visible = model_index == selected_tool
@@ -113,7 +116,7 @@ func use_tool(delta: float, active: bool, camera: Camera3D, stroke: bool = false
 			_continuous_elapsed = 0.0
 			if selected_tool == Tool.BLOWER:
 				# Foam is dispersed off-site, never converted into disposal credits.
-				pile.excavate(hit.position, 1.15, 0.18 * cut_delta, 0.10 * cut_delta)
+				pile.excavate(hit.position, 2.2, 0.70 * cut_delta, 0.50 * cut_delta)
 			else:
 				var room := maxf(0.0, player.bucket_capacity() - player.bucket_load)
 				var volume := pile.excavate(hit.position, 0.55, 0.45 * cut_delta, minf(room, cut_delta * 0.12))
@@ -185,11 +188,15 @@ func _ray(start: Vector3, finish: Vector3, mask: int) -> Dictionary:
 	return get_world_3d().direct_space_state.intersect_ray(query)
 
 func _update_detector(delta: float, camera: Camera3D) -> void:
-	var nearest := 7.0
+	var nearest := 12.0
 	for pearl in pile.pearls:
 		if _searchable(pearl) and pile.world_clear(camera.global_position, pearl.global_position):
-			nearest = minf(nearest, camera.global_position.distance_to(pearl.global_position))
-	detector_strength = clampf(1.0 - nearest / 7.0, 0.0, 1.0)
+			var distance := camera.global_position.distance_to(pearl.global_position)
+			if distance < nearest:
+				nearest = distance
+				var local := camera.to_local(pearl.global_position)
+				detector_direction = atan2(local.x, -local.z)
+	detector_strength = clampf(1.0 - nearest / 12.0, 0.0, 1.0)
 	if detector_strength <= 0.0:
 		_beep.stop()
 		_beep_cooldown = 0.0

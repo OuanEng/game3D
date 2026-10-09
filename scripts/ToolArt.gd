@@ -50,17 +50,21 @@ static func hand(parent: Node3D, level: int) -> void:
 		box(parent, Vector3(0, 0.033, -0.015), Vector3(0.10, 0.025, 0.06), mat(Color(0.10, 0.12, 0.13), 0.3))
 
 static func voxel_material(level: int) -> StandardMaterial3D:
-	var base := Color(0.57, 0.36, 0.24) if level == 0 else Color(0.77, 0.46, 0.10)
+	var base := Color(0.92, 0.59, 0.34) if level == 0 else Color(1.0, 0.68, 0.12)
 	var pixels := Image.create(16, 16, false, Image.FORMAT_RGBA8)
 	for y in range(16):
 		for x in range(16):
 			var grain := (x * 7 + y * 11 + x * y) % 13
-			var color := base.lightened(0.10) if grain < 4 else base
+			var color := base.lightened(0.32) if grain < 4 else base
 			if grain > 10 or (y < 4 and (x / 2 + y) % 3 == 0):
-				color = base.darkened(0.48)
+				color = base.darkened(0.28)
 			pixels.set_pixel(x, y, color)
 	var material := mat(Color.WHITE)
 	material.albedo_texture = ImageTexture.create_from_image(pixels)
+	material.emission_enabled = true
+	material.emission = Color.WHITE
+	material.emission_texture = material.albedo_texture
+	material.emission_energy_multiplier = 0.22
 	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	return material
 

@@ -12,7 +12,7 @@ func run() -> void:
 	world.menus.start_shift(GameManager.Mode.HARDCORE)
 	world.intro.complete()
 	var manager: GameManager = world.manager
-	check(manager.is_hardcore() and manager.remaining == 600, "Hardcore timer/mode missing")
+	check(manager.is_hardcore() and manager.remaining == 480, "Hardcore timer/mode missing")
 	manager.credits = 100000
 	for id in GameManager.UPGRADES:
 		check(not manager.buy_upgrade(id), "Hardcore purchase allowed: " + id)

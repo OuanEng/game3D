@@ -15,6 +15,11 @@ signal surface_changed(removed_volume: float)
 @export_range(0.2, 8.0) var mound_height: float = 4.5
 @export_range(9, 81) var columns: int = 65
 @export_range(9, 81) var rows: int = 53
+@export_enum("Foam", "Salt", "Sand", "Mixed") var material_kind := 0
+@export var shallow_targets := false
+
+func resistance() -> float:
+	return [1.0, 1.65, 2.4, 1.0][material_kind]
 
 var pearls: Array[Pearl] = []
 var mesh_instance: MeshInstance3D
@@ -46,6 +51,7 @@ func _ready() -> void:
 	material = ShaderMaterial.new()
 	material.shader = preload("res://shaders/FoamTerrain.gdshader")
 	material.set_shader_parameter("base_height", mound_center.y)
+	material.set_shader_parameter("material_kind", material_kind)
 	mesh_instance.material_override = material
 	add_child(mesh_instance)
 	foam_body = StaticBody3D.new()
@@ -184,6 +190,7 @@ func excavate(world_hit: Vector3, radius: float, depth: float, available_volume:
 	# bucket capacity minus its current contents, using m³ throughout.
 	if radius <= 0.0 or depth <= 0.0 or available_volume <= 0.0:
 		return 0.0
+	depth /= resistance()
 	var hit := to_local(world_hit)
 	# Visit only the brush's grid rectangle. A small hand stroke should not
 	# scan every vertex just because the warehouse contains a large mountain.
@@ -206,7 +213,10 @@ func excavate(world_hit: Vector3, radius: float, depth: float, available_volume:
 			# Clamp before measuring, so a nearly empty patch cannot generate
 			# imaginary foam. Per-vertex triangle weights preserve actual m³.
 			var falloff := pow(1.0 - distance_squared / radius_squared, 1.5)
-			var drop := minf(heights[index], depth * falloff)
+			var layer_resistance := 1.0
+			if material_kind == 3:
+				layer_resistance = 2.4 if heights[index] < 1.0 else (1.65 if heights[index] < 2.2 else 1.0)
+			var drop := minf(heights[index], depth * falloff / layer_resistance)
 			affected.append(index)
 			drops.append(drop)
 			proposed_volume += drop * _vertex_areas[index]
@@ -251,6 +261,8 @@ func spawn_pearls() -> void:
 		var top := sample_height(to_global(local)) - global_position.y
 		var burial := 0.32 + float(index) * 0.14 if index < 2 else _random.randf_range(0.65, 1.5)
 		local.y = maxf(mound_center.y + 0.25, top - burial)
+		if shallow_targets:
+			local.y = maxf(mound_center.y + 0.16, top - 0.14)
 		var pearl := Pearl.new()
 		pearl.item_kind = index % 3
 		pearl.item_name = ["Boss's necklace pearl", "Antique brass marble", "Precision steel bearing"][index % 3]

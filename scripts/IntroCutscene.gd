@@ -78,7 +78,7 @@ func build_animation() -> void:
 	var times := [0.0, 2.8, 3.2, 7.5, clip.length]
 	var rotations: Array = []
 	for index in range(views.size()):
-		rotations.append(view_rotation(views[index], Vector3(0, 5.3, -1.6) if index < 3 else Vector3(0, 2.0, -1.6)))
+		rotations.append(view_rotation(views[index], Vector3(0, player.pile.mound_height + 0.8, -1.6) if index < 3 else Vector3(0, 2.0, -1.6)))
 	# End on precisely the gameplay camera pose to avoid a jarring cut.
 	rotations[rotations.size() - 1] = player.camera.global_rotation
 	add_keys(clip, ^"Camera3D:position", times, views)
@@ -92,7 +92,7 @@ func build_animation() -> void:
 	ring.outer_radius = 0.435
 	strand.mesh = ring
 	strand.material_override = Props.material(Color(0.71, 0.51, 0.24), 0.7)
-	strand.position = Vector3(0, 5.5, -1.6)
+	strand.position = Vector3(0, player.pile.mound_height + 1.0, -1.6)
 	strand.rotation.x = PI / 2.0
 	strand.scale.z = 0.33
 	proxies.add_child(strand)
@@ -108,7 +108,7 @@ func build_animation() -> void:
 		bead.material_override = Props.material(Color(1.0, 0.92, 0.78), 0.25)
 		proxies.add_child(bead)
 		var angle := TAU * index / pearls.size()
-		var start := Vector3(cos(angle) * 0.43, 5.5 + sin(angle) * 0.14, -1.6)
+		var start := Vector3(cos(angle) * 0.43, player.pile.mound_height + 1.0 + sin(angle) * 0.14, -1.6)
 		var destination := to_local(pearls[index].global_position)
 		var apex := start.lerp(destination, 0.5) + Vector3(0, 1.0 + index * 0.03, 0)
 		add_keys(clip, NodePath("Necklace/Bead%d:position" % index), [0.0, 3.0, 3.55 + index * 0.025, 4.6 + index * 0.05], [start, start, apex, destination])
@@ -132,9 +132,9 @@ func _process(_delta: float) -> void:
 	elif time < 5.5:
 		caption.text = "A pallet tips. The necklace snaps.\nEverything disappears into the packaging foam."
 	else:
-		caption.text = "Fifteen minutes until morning rounds. No tools, no credits.\nDig by hand, dump foam, buy equipment. Find, rinse and return every item."
+		caption.text = tr("Recover, wash and return every item before morning rounds.\nTime remaining: %d minutes.") % ceili(player.manager.remaining / 60.0)
 		if player.manager.is_hardcore():
-			caption.text = "Ten minutes. Bare hands only. The supply desk is closed.\nDig, carry, rinse by hand and return every item before the boss arrives."
+			caption.text = tr("Bare hands only. The supply desk is closed.\nTime remaining: %d minutes.") % ceili(player.manager.remaining / 60.0)
 	if time >= 3.0 and not snap_played:
 		snap_played = true
 		snap.play()

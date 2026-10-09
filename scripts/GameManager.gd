@@ -7,18 +7,18 @@ signal game_ended(won: bool)
 signal wallet_changed(credits: int)
 signal upgrade_bought(id: String)
 const UPGRADES := {
-	"uv": {"name": "Balanced UV flashlight", "cost": 25, "description": "Brighter glows per level; only under thin foam. Never increases scan depth."},
-	"detector": {"name": "Pearl sonar", "cost": 20, "description": "Follow faster beeps as you approach remaining pearls."},
-	"scoop": {"name": "Heavy-duty scoop", "cost": 35, "description": "First level: radius 0.75 m, depth 0.30 m. Later levels expand both."},
-	"bucket": {"name": "Portable foam bucket", "cost": 40, "description": "Replace your 12-litre hand carry with 500 litres of foam storage."},
-	"auto_washer": {"name": "Washing conveyor", "cost": 150, "description": "E loads the belt or retrieves from the clean tray. Each level adds buffer space and 35% base washing speed."},
-	"gloves": {"name": "Rapid digging gloves", "cost": 80, "description": "Reduce excavation cooldown."},
-	"blower": {"name": "Industrial blower", "cost": 250, "description": "Slot 4: disperse a wide surface layer; no disposal income."},
-	"vacuum": {"name": "Foam vacuum", "cost": 400, "description": "Slot 5: continuously transfer foam into your carry storage."},
-	"boots": {"name": "Carry speed boots", "cost": 120, "description": "Faster movement and reduced load penalty."},
-	"battery": {"name": "Flashlight battery", "cost": 100, "description": "Longer UV charge and brighter work light. Recharges while UV is off."},
-	"grabber": {"name": "Magnetized grabber", "cost": 180, "description": "Extend pickup ray reach; walls still block it."},
-	"delay": {"name": "Boss distraction", "cost": 200, "description": "Add two minutes to this shift."}
+	"uv": {"name": "Balanced UV flashlight", "cost": 140, "description": "Brighter glows per level; only under thin foam. Never increases scan depth."},
+	"detector": {"name": "Pearl sonar", "cost": 100, "description": "12-metre search range with directional guidance and soft pulses."},
+	"scoop": {"name": "Heavy-duty scoop", "cost": 90, "description": "First level: radius 0.45 m, depth 0.14 m. Later levels expand both."},
+	"bucket": {"name": "Portable foam bucket", "cost": 60, "description": "Replace your 12-litre hand carry with 80 litres of foam storage."},
+	"auto_washer": {"name": "Washing conveyor", "cost": 240, "description": "E loads the belt or retrieves from the clean tray. Each level adds buffer space and 35% base washing speed."},
+	"gloves": {"name": "Rapid digging gloves", "cost": 110, "description": "Reduce excavation cooldown."},
+	"blower": {"name": "Industrial blower", "cost": 280, "description": "Slot 4: disperse a wide surface layer; no disposal income."},
+	"vacuum": {"name": "Foam vacuum", "cost": 420, "description": "Slot 5: continuously transfer foam into your carry storage."},
+	"boots": {"name": "Carry speed boots", "cost": 140, "description": "Faster movement and reduced load penalty."},
+	"battery": {"name": "Flashlight battery", "cost": 110, "description": "Longer UV charge and brighter work light. Recharges while UV is off."},
+	"grabber": {"name": "Magnetized grabber", "cost": 120, "description": "Extend pickup reach and widen aim assistance; walls still block it."},
+	"delay": {"name": "Boss distraction", "cost": 300, "description": "Add two minutes to this shift."}
 }
 # Match Tools.Tool: the scoop is free; UV and detector must be purchased.
 const TOOL_UPGRADES := ["", "uv", "detector", "blower", "vacuum"]
@@ -26,6 +26,8 @@ const TOOL_UPGRADES := ["", "uv", "detector", "blower", "vacuum"]
 @export var pearl_reward: int = 25
 var credits: int = 0
 var owned: Dictionary = {}
+var debug_used := false
+var disposal_remainder := 0.0
 var debug_infinite_bucket: bool = false
 enum Mode { NORMAL, HARDCORE }
 var mode: Mode = Mode.NORMAL
@@ -85,8 +87,8 @@ func max_level(id: String) -> int:
 func upgrade_price(id: String) -> int:
 	if not UPGRADES.has(id):
 		return 0
-	# Bounded levels prevent overflow. Each successive level costs 2.4x.
-	return int(ceil(float(UPGRADES[id]["cost"]) * pow(2.4, level(id))))
+	# Bounded levels prevent overflow. Each successive level costs 1.85x.
+	return int(ceil(float(UPGRADES[id]["cost"]) * pow(1.85, level(id))))
 
 func owns_upgrade(id: String) -> bool:
 	return level(id) > 0
@@ -153,3 +155,12 @@ func finish(won: bool) -> void:
 	phase = Phase.WON if won else Phase.LOST
 	game_ended.emit(won)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+func reward_disposal(volume: float, material_kind: int) -> int:
+	# Retain fractional earnings: splitting dumps cannot manufacture money.
+	disposal_remainder += volume * [90.0, 120.0, 160.0, 90.0][material_kind]
+	var payout := floori(disposal_remainder)
+	disposal_remainder -= payout
+	credits += payout
+	wallet_changed.emit(credits)
+	return payout

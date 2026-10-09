@@ -92,18 +92,18 @@ func cycle_tool(direction: int) -> void:
 			break
 
 func effective_pickup_reach() -> float:
-	return reach + 0.65 * manager.level("grabber")
+	return reach + 0.8 * manager.level("grabber")
 
 func bucket_capacity() -> float:
 	if manager.debug_infinite_bucket:
 		return INF # Finite removed volume divided by infinity gives an empty HUD bar.
-	return 0.50 * pow(1.6, manager.level("bucket") - 1) if manager.owns_upgrade("bucket") else 0.012
+	return 0.08 * pow(1.75, manager.level("bucket") - 1) if manager.owns_upgrade("bucket") else 0.012
 
 func scoop_radius() -> float:
-	return 0.75 + 0.12 * (manager.level("scoop") - 1) if manager.owns_upgrade("scoop") else 0.25
+	return 0.45 + 0.12 * (manager.level("scoop") - 1) if manager.owns_upgrade("scoop") else 0.25
 
 func scoop_depth() -> float:
-	return 0.30 + 0.05 * (manager.level("scoop") - 1) if manager.owns_upgrade("scoop") else 0.08
+	return 0.14 + 0.045 * (manager.level("scoop") - 1) if manager.owns_upgrade("scoop") else 0.08
 
 func try_scoop_at(hit_point: Vector3) -> float:
 	# Mesh and bucket form one transaction. A nearly full bucket scales the cut;
@@ -116,6 +116,8 @@ func try_scoop_at(hit_point: Vector3) -> float:
 	var removed := pile.excavate(hit_point, scoop_radius(), scoop_depth(), room)
 	bucket_load = minf(bucket_capacity(), bucket_load + removed)
 	if removed > 0.0:
+		get_parent().stages.note_dig()
+		get_parent().audio.one_shot("dig")
 		bucket_changed.emit(bucket_load, bucket_capacity())
 	return removed
 
@@ -140,8 +142,9 @@ func dump_bucket(bin: WasteBin, require_aim: bool = true) -> float:
 	if dumped <= 0.0:
 		return 0.0
 	# Disposal income lets the player buy a bucket even before finding an item.
-	manager.credits += roundi(dumped * 1000.0)
-	manager.wallet_changed.emit(manager.credits)
+	manager.reward_disposal(dumped, pile.material_kind)
+	get_parent().stages.note_dump()
+	get_parent().audio.one_shot("dump")
 	bucket_load = 0.0
 	bucket_changed.emit(bucket_load, bucket_capacity())
 	return dumped
@@ -156,7 +159,7 @@ func try_dump_foam() -> float:
 		if dumped > 0.0:
 			break
 	if dumped > 0.0:
-		notice = tr("Foam emptied · +%d credits") % roundi(dumped * 1000.0)
+		notice = tr("Storage emptied")
 	elif bucket_load <= 0.0:
 		notice = tr("Carry storage is empty")
 	else:
@@ -176,6 +179,8 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		prompt = tr("Supply desk open — the boss clock keeps running") if store_open else tr("Click to resume")
 		return
+	if Input.is_action_just_pressed("work_light"):
+		work_light.visible = not work_light.visible
 	var axis := Input.get_vector("left", "right", "forward", "back")
 	var direction := global_basis * Vector3(axis.x, 0, axis.y)
 	var load_fraction := clampf(bucket_load / bucket_capacity(), 0.0, 1.0)
@@ -193,12 +198,17 @@ func _physics_process(delta: float) -> void:
 	detector_strength = tools.detector_strength
 	update_auto_washer(delta)
 	var hit := cast_from_camera(effective_pickup_reach(), 1 | 4 | 8 | 16)
+	if held == null and manager.level("grabber") > 0 and (hit.is_empty() or hit.collider == pile.foam_body):
+		var assisted := assisted_pickup()
+		if assisted != null:
+			hit = {"collider": assisted}
 	if not hit.is_empty():
 		var target: Object = hit.collider
 		if target is Pearl and held == null:
 			prompt = tr("E • retrieve pearl") + " · " + target.localized_name() if target.is_retrievable() else tr("Scoop lower to expose this pearl")
 			if Input.is_action_just_pressed("interact") and target.pick_up(hand):
 				held = target
+				get_parent().audio.one_shot("pickup")
 		elif target is UpgradeStore:
 			if manager.is_hardcore():
 				prompt = tr("HARDCORE · supply desk disabled")
@@ -236,6 +246,9 @@ func interact_with_station(station: Station, delta: float) -> void:
 			return
 		prompt = tr("Hold E • rinse the held pearl")
 		if held != null and Input.is_action_pressed("interact"):
+			if held.residue > 0.0:
+				get_parent().audio.manual_wash_remaining = 0.1
+				station.manual_flow_remaining = 0.1
 			held.wash(delta)
 	else:
 		prompt = tr("E • place clean pearl in velvet box (+%d credits)") % manager.pearl_reward
@@ -248,6 +261,27 @@ func interact_with_station(station: Station, delta: float) -> void:
 func update_auto_washer(delta: float) -> void:
 	# Cleaning is now owned by the physical washing station, not the player.
 	pass
+
+func assisted_pickup() -> Pearl:
+	# Widen the aiming cone, but require exposure and an unobstructed physics ray.
+	var best: Pearl = null
+	var best_angle := 0.03 + manager.level("grabber") * 0.015
+	for item in pile.pearls:
+		if not item.is_retrievable():
+			continue
+		var offset := item.global_position - camera.global_position
+		if offset.length() > effective_pickup_reach():
+			continue
+		var angle := (-camera.global_basis.z).angle_to(offset)
+		if angle >= best_angle:
+			continue
+		var query := PhysicsRayQueryParameters3D.create(camera.global_position, item.global_position, 1 | 4 | 8 | 16)
+		query.exclude = [get_rid()]
+		var hit := get_world_3d().direct_space_state.intersect_ray(query)
+		if not hit.is_empty() and hit.collider == item:
+			best = item
+			best_angle = angle
+	return best
 
 func cast_from_camera(distance: float, mask: int) -> Dictionary:
 	var start := camera.global_position
@@ -269,6 +303,7 @@ func drop_safely(throw_item: bool = false) -> void:
 		return
 	var fractions := space.cast_motion(query)
 	var destination := camera.global_position + query.motion * maxf(0.0, fractions[0] - 0.04)
+	get_parent().audio.one_shot("drop")
 	held.drop(destination)
 	if throw_item:
 		held.linear_velocity = -camera.global_basis.z * 3.5 + Vector3.UP * 0.8

@@ -40,6 +40,8 @@ func clear_panel(title: String) -> void:
 		child.queue_free()
 	var heading := Label.new()
 	heading.text = title
+	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	heading.custom_minimum_size.x = 360
 	heading.add_theme_font_size_override("font_size", 32)
 	column.add_child(heading)
 	show()
@@ -49,14 +51,15 @@ func button(text: String, action: Callable) -> void:
 	var control := Button.new()
 	control.text = text
 	control.custom_minimum_size.y = 48
+	control.add_theme_font_size_override("font_size", 20)
 	control.pressed.connect(action)
 	column.add_child(control)
 
 func show_main() -> void:
 	screen = "main"
 	clear_panel("Hidden in Foam")
-	button("Normal · Start Night Shift", start_shift)
-	button("Hardcore · Hands Only / 10 min", func(): start_shift(GameManager.Mode.HARDCORE))
+	button("Career · Choose Stage", func(): show_stages(false))
+	button("Hardcore · Choose Stage", func(): show_stages(true))
 	button("Upgrades", show_catalog)
 	button("Settings", show_settings)
 	button("Quit", quit_game)
@@ -65,6 +68,7 @@ func show_main() -> void:
 func start_shift(mode: GameManager.Mode = GameManager.Mode.NORMAL) -> void:
 	world.foam_mesh.configure_fresh_grid(world.settings.mesh_grid())
 	world.manager.select_mode(mode)
+	world.stages.begin()
 	screen = "playing"
 	hide()
 	world.intro.play()
@@ -88,7 +92,7 @@ func _input(event: InputEvent) -> void:
 		resume()
 	elif screen == "settings":
 		back_from_settings()
-	elif screen == "catalog":
+	elif screen in ["catalog", "stages"]:
 		show_main()
 	get_viewport().set_input_as_handled()
 
@@ -130,8 +134,23 @@ func show_catalog() -> void:
 	screen = "catalog"
 	clear_panel("SUPPLY CATALOG")
 	var info := Label.new()
-	info.text = "12 upgrades · next levels cost 2.4x\n\nBucket / Scoop / Rapid gloves\nUV light / Acoustic detector\nBlower / Vacuum / Washing belt\nCarry boots / Battery / Grabber\nBoss distraction\n\nStart empty-handed. Dump foam for credits.\nBuy at the desk or from Pause → Upgrades."
+	info.text = "12 upgrades · next levels cost 1.85x\n\nBucket / Scoop / Rapid gloves\nUV light / Acoustic detector\nBlower / Vacuum / Washing belt\nCarry boots / Battery / Grabber\nBoss distraction\n\nStart empty-handed. Dump foam for credits.\nBuy at the desk or from Pause → Upgrades."
 	column.add_child(info)
+	button("Back", show_main)
+
+func show_stages(hardcore: bool) -> void:
+	screen = "stages"
+	clear_panel("Hardcore · Choose Stage" if hardcore else "Career · Choose Stage")
+	var info := Label.new()
+	info.text = "Sand requires Scoop II or Vacuum. Replay earlier stages to prepare."
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.custom_minimum_size.x = 360
+	column.add_child(info)
+	for index in range(4):
+		var stage: Dictionary = world.stages.STAGES[index]
+		button("%d · %s" % [index + 1, tr(stage.title)], world.stages.launch.bind(index, GameManager.Mode.HARDCORE if hardcore else GameManager.Mode.NORMAL))
+		var choice := column.get_child(column.get_child_count() - 1) as Button
+		choice.disabled = not world.stages.can_enter(index, hardcore)
 	button("Back", show_main)
 
 func show_settings() -> void:
@@ -144,7 +163,9 @@ func show_settings() -> void:
 	button("Back", back_from_settings)
 
 func back_from_settings() -> void:
-	if settings_return == "pause":
+	if settings_return == "results":
+		show_results(world.manager.phase == GameManager.Phase.WON)
+	elif settings_return == "pause":
 		show_pause()
 	else:
 		show_main()
@@ -155,3 +176,27 @@ func quit_game() -> void:
 		button("Return to Main Menu", show_main)
 	else:
 		get_tree().quit()
+
+func show_results(won: bool) -> void:
+	# Connected after StageManager.complete: unlocks and career save are ready.
+	screen = "results"
+	clear_panel("SHIFT COMPLETE" if won else "THE BOSS HAS ARRIVED")
+	var info := Label.new()
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.custom_minimum_size.x = 360
+	info.text = tr("Returned %d / %d items") % [world.manager.collected, world.manager.total]
+	column.add_child(info)
+	var next_index: int = world.stages.selected_stage + 1
+	if won and next_index < world.stages.STAGES.size():
+		button("Next Stage", world.stages.launch.bind(next_index, world.manager.mode))
+		var next_button := column.get_child(column.get_child_count() - 1) as Button
+		next_button.disabled = not world.stages.can_enter(next_index, world.manager.is_hardcore())
+		if next_button.disabled:
+			var requirement := Label.new()
+			requirement.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			requirement.text = "This stage is unavailable in Hardcore." if world.manager.is_hardcore() else "Sand requires Scoop II or Vacuum. Replay earlier stages to prepare."
+			column.add_child(requirement)
+	elif won:
+		info.text += "\n" + tr("All four stages complete!")
+	button("Settings", show_settings)
+	button("Return to Main Menu", return_to_main)

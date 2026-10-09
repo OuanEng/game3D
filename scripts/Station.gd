@@ -5,6 +5,8 @@ enum Kind { WASH, DISPLAY }
 var washing_item: Pearl
 var belt_anchor: Marker3D
 var washer_art: Node3D
+var basin_art: Node3D
+var manual_flow_remaining := 0.0
 var waiting: Array[Pearl] = []
 var clean_items: Array[Pearl] = []
 
@@ -23,6 +25,9 @@ func _ready() -> void:
 	collider.shape = shape
 	add_child(collider)
 	if kind == Kind.WASH:
+		basin_art = preload("res://scripts/WashBasin.gd").new()
+		basin_art.name = "ManualWashBasin"
+		add_child(basin_art)
 		washer_art = preload("res://scripts/WasherArt.gd").new()
 		washer_art.name = "ConveyorWithWaterJets"
 		add_child(washer_art)
@@ -41,7 +46,7 @@ func queue_count() -> int:
 
 func accept_item(item: Pearl) -> bool:
 	# Reject without changing ownership: the player can always keep or throw it.
-	if kind != Kind.WASH or not get_parent().manager.owns_upgrade("auto_washer") or not is_instance_valid(item):
+	if not get_parent().manager.running or kind != Kind.WASH or not get_parent().manager.owns_upgrade("auto_washer") or not is_instance_valid(item):
 		return false
 	if item.state != Pearl.State.HELD or item == washing_item or item in waiting or item in clean_items:
 		return false
@@ -76,9 +81,16 @@ func take_clean(hand: Node3D) -> Pearl:
 	return item
 
 func _physics_process(delta: float) -> void:
+	var running: bool = get_parent().manager.running
+	if basin_art != null:
+		basin_art.visible = not get_parent().manager.owns_upgrade("auto_washer")
+		basin_art.update_water(delta, running and manual_flow_remaining > 0)
+		manual_flow_remaining = maxf(0.0, manual_flow_remaining - delta)
 	if washer_art != null:
 		washer_art.visible = get_parent().manager.owns_upgrade("auto_washer")
 		washer_art.update_washing(delta, is_instance_valid(washing_item) and washing_item.residue > 0.0 and get_parent().manager.running)
+	if not running:
+		return # Ended shifts do not advance cleaning or move another queued item.
 	if is_instance_valid(washing_item):
 		washing_item.wash(delta * 0.67 * (1.0 + 0.35 * (get_parent().manager.level("auto_washer") - 1)))
 		belt_anchor.position.x = -0.35 + (1.0 - washing_item.residue) * 0.7

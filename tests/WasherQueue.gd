@@ -7,6 +7,7 @@ func check(ok: bool, message: String) -> void:
 		failures += 1
 		push_error(message)
 func run() -> void:
+	preload("res://scripts/StageManager.gd").selected_stage = 3
 	var world: Node3D = load("res://Main.tscn").instantiate()
 	root.add_child(world)
 	world.menus.start_shift()

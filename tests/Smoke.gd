@@ -15,6 +15,7 @@ func terrain_ray(terrain: FoamMesh, point: Vector3) -> Dictionary:
 	return terrain.get_world_3d().direct_space_state.intersect_ray(query)
 
 func run() -> void:
+	preload("res://scripts/StageManager.gd").selected_stage = 3
 	var scene: Node3D = load("res://Main.tscn").instantiate()
 	root.add_child(scene)
 	await physics_frame
@@ -43,7 +44,7 @@ func run() -> void:
 	check(paused and manager.remaining == paused_time, "Pause freezes boss clock")
 	scene.menus.resume()
 	check(not paused, "Resume unpauses scene")
-	manager.credits = 60 # Seed funds only for the purchase validation below.
+	manager.credits = 175 # Seed funds only for the purchase validation below.
 	check(not player.tools.select_tool(1), "UV starts locked")
 	scene.shop.open_store(player, manager)
 	check(player.store_open and scene.shop.is_open, "Shop gates player")
@@ -120,9 +121,9 @@ func run() -> void:
 	# Deliberately funded wallet exercises upgrades without requiring a full economy run.
 	manager.credits = 300
 	var carried := player.bucket_load
-	check(manager.buy_upgrade("bucket") and player.bucket_capacity() == 0.50, "Capacity upgrade applied")
+	check(manager.buy_upgrade("bucket") and player.bucket_capacity() == 0.08, "Capacity upgrade applied")
 	check(player.bucket_load == carried, "Capacity upgrade preserves contents")
-	check(manager.buy_upgrade("scoop") and player.scoop_radius() == 0.75 and player.scoop_depth() == 0.30, "Scoop dimensions upgrade")
+	check(manager.buy_upgrade("scoop") and player.scoop_radius() == 0.45 and player.scoop_depth() == 0.14, "Scoop dimensions upgrade")
 	check(manager.buy_upgrade("detector"), "Detector purchase")
 	check(not manager.owns_tool(3), "Blower remains locked before purchase")
 

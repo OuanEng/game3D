@@ -21,6 +21,7 @@ func key(code: Key) -> void:
 	Input.parse_input_event(release)
 	await create_timer(0.05).timeout
 func run() -> void:
+	preload("res://scripts/StageManager.gd").selected_stage = 3
 	var world: Node3D = load("res://Main.tscn").instantiate()
 	root.add_child(world)
 	var debug: Node = world.get_node("DebugPanel")

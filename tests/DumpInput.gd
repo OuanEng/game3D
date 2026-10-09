@@ -5,6 +5,7 @@ func _initialize() -> void:
 	call_deferred("run")
 
 func run() -> void:
+	preload("res://scripts/StageManager.gd").selected_stage = 3
 	var scene: Node3D = load("res://Main.tscn").instantiate()
 	root.add_child(scene)
 	scene.menus.start_shift()

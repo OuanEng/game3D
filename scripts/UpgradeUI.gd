@@ -37,7 +37,7 @@ func open_store(player: Player, manager: GameManager) -> void:
 	_player.velocity.x = 0.0
 	_player.velocity.z = 0.0
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	_message.text = tr("Return items or dump foam to earn credits. Next levels cost 2.4x. ") + (tr("Shift paused.") if get_tree().paused else tr("Boss clock is running."))
+	_message.text = tr("Return items or dump foam to earn credits. Next levels cost 1.85x. ") + (tr("Shift paused.") if get_tree().paused else tr("Boss clock is running."))
 	_message.modulate = Color(0.73, 0.81, 0.79)
 	_build_catalog()
 	_refresh()

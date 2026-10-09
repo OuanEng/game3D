@@ -1,5 +1,12 @@
 # Hidden in Foam — Godot 4
 
+Latest QA and audio/sink update: [10-category sub-agent assessment and architecture](QA_ARCHITECTURE.md).
+
+Free art integration: [Kenney GLB import setup and complete script map](FREE_ASSET_SETUP.md).
+
+Latest implementation: [Four-stage career, tutorial, salt/sand/foam, events and rebalanced equipment](STAGES_GUIDE.md).
+Start with **Career → Packaging Warehouse**. This guide supersedes older economy figures below.
+
 Latest update: [Normal / Hardcore, Thai / English, voxel hands and developer tools](PROP_DESIGN_GUIDE.md).
 
 Current version: [Large foam mountain, Q disposal, left capacity bar and balanced UV](LARGE_FOAM_GUIDE.md).

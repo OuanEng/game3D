@@ -2,6 +2,7 @@ shader_type spatial;
 render_mode diffuse_burley, specular_schlick_ggx;
 
 uniform float base_height = 0.0;
+uniform int material_kind = 0;
 uniform bool uv_scan_enabled = false;
 uniform vec3 uv_origin = vec3(0.0);
 uniform vec3 uv_direction = vec3(0.0, 0.0, -1.0);
@@ -33,6 +34,18 @@ void fragment() {
 	ALBEDO *= 1.0 - fleck * 0.10;
 	ROUGHNESS = 0.94;
 	SPECULAR = 0.18;
+	int visible_material = material_kind;
+	if (material_kind == 3) { visible_material = foam_height < 1.0 ? 2 : (foam_height < 2.2 ? 1 : 0); }
+	if (visible_material == 1) {
+		float crystal = hash_cell(floor(world_point * 85.0));
+		ALBEDO = mix(vec3(0.66, 0.72, 0.79), vec3(0.92, 0.97, 1.0), crystal);
+		ROUGHNESS = 0.62;
+		SPECULAR = 0.4;
+	} else if (visible_material == 2) {
+		float ripple = sin(world_point.x * 14.0 + sin(world_point.z * 3.0));
+		ALBEDO = mix(vec3(0.38, 0.24, 0.10), vec3(0.78, 0.59, 0.31), grain) * (0.96 + ripple * 0.04);
+		ROUGHNESS = 1.0;
+	}
 	if (uv_scan_enabled) {
 		vec3 offset = world_point - uv_origin;
 		float distance_to_beam = length(offset);
