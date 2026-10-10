@@ -7,6 +7,7 @@ signal bucket_changed(load_m3: float, capacity_m3: float)
 @export var acceleration: float = 16.0
 @export var mouse_sensitivity: float = 0.002
 @export var reach: float = 3.0
+const WEB_MOUSE_EVENT_LIMIT := 72.0
 var manager: GameManager
 var pile: FoamMesh
 var camera: Camera3D
@@ -71,8 +72,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
 	if event is InputEventMouseMotion:
-		rotate_y(-event.relative.x * mouse_sensitivity)
-		camera.rotation.x = clampf(camera.rotation.x - event.relative.y * mouse_sensitivity * (-1.0 if invert_y else 1.0), -1.45, 1.45)
+		# Browser pointer lock can occasionally combine delayed movement into one
+		# oversized event. Physical screen motion avoids canvas-stretch scaling;
+		# limiting only web spikes preserves ordinary desktop mouse response.
+		var motion := filtered_mouse_delta(event.screen_relative, event.relative, OS.has_feature("web"))
+		rotate_y(-motion.x * mouse_sensitivity)
+		camera.rotation.x = clampf(camera.rotation.x - motion.y * mouse_sensitivity * (-1.0 if invert_y else 1.0), -1.45, 1.45)
 	for index in range(5):
 		if event.is_action_pressed("tool_%d" % (index + 1)):
 			if not tools.select_tool(index):
@@ -83,6 +88,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			cycle_tool(1)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			cycle_tool(-1)
+
+static func filtered_mouse_delta(screen_delta: Vector2, scaled_delta: Vector2, web_mode: bool) -> Vector2:
+	var motion := screen_delta if screen_delta.length_squared() > 0.0 else scaled_delta
+	if web_mode:
+		motion = motion.limit_length(WEB_MOUSE_EVENT_LIMIT)
+	return motion
 
 func cycle_tool(direction: int) -> void:
 	# Skip locked slots; the scoop is always owned.

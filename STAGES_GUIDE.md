@@ -181,6 +181,12 @@ by clearing site data. F3 is available for testing; using it does not block norm
 
 F3 → Unlock All Stages saves all four stage unlocks immediately, bypassing sand equipment requirements and allowing all stages in either mode for testing. Return through ESC → Main Menu to select a stage. This does not grant equipment or complete the current shift.
 
+Web pointer lock uses `InputEventMouseMotion.screen_relative` so canvas stretching
+does not multiply sensitivity. Web-only motion events are limited to 72 physical
+pixels per event to suppress intermittent Edge/Chromium coalescing spikes. Ordinary
+events below that threshold and all desktop motion remain unchanged; the Settings
+mouse-sensitivity slider continues to apply after filtering.
+
 ## Tailored environment update
 
 Stage 1 adds taped cardboard boxes and packing-tape rolls. Stage 2 is now Rustic Salt Barn with timber walls, procedural salt crust, sacks, wooden barrels, a grinder and amber lanterns. Stage 3 is Construction Site Yard with an open roof, low perimeter barriers, scaffolding, cement sacks, cones, shovels and forklift. Stage 4 is Industrial Mega Depot with mixed strata: sand below 1 m, salt from 1–2.2 m, foam above 2.2 m. Exposed height drives both shader appearance and per-vertex resistance (2.4/1.65/1). These are horizontal strata, so lower outer slopes also expose dense materials. Mixed disposal pays the foam rate conservatively. The warmer pixel hand uses nearest filtering, brighter highlights and subtle texture-matched emission to remain readable in darkness. Props are stylized procedural geometry, not external photo assets.
