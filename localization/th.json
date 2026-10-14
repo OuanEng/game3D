@@ -215,5 +215,7 @@
   "FOAM": "โฟม",
   "SALT": "เกลือ",
   "SAND": "ทราย",
-  "Earn credits by returning items or dumping material. Upgrades: 1.85x; recharges: 1.35x. ": "คืนของหรือทิ้งวัสดุเพื่อรับเงิน อัปเกรดครั้งถัดไป ×1.85 เติมแบตครั้งถัดไป ×1.35 "
+  "Earn credits by returning items or dumping material. Upgrades: 1.85x; recharges: 1.35x. ": "คืนของหรือทิ้งวัสดุเพื่อรับเงิน อัปเกรดครั้งถัดไป ×1.85 เติมแบตครั้งถัดไป ×1.35 ",
+  "DIRTY - WASH": "สกปรก - ต้องล้าง",
+  "CLEAN - RETURN": "สะอาด - ส่งคืนได้"
 }

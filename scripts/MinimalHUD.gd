@@ -135,6 +135,11 @@ func _draw() -> void:
 	if p.held != null:
 		var item_color := Color(0.8, 0.66, 0.4) if p.held.residue > 0 else accent
 		draw_circle(item_at, 7, item_color)
+		var condition := tr("DIRTY - WASH") if p.held.residue > 0.0 else tr("CLEAN - RETURN")
+		var status_color := Color(1.0, 0.65, 0.28) if p.held.residue > 0.0 else accent
+		var status_at := item_at + Vector2(24, 6)
+		draw_string_outline(ThemeDB.fallback_font, status_at, condition, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, 5, Color(0.01, 0.02, 0.03))
+		draw_string(ThemeDB.fallback_font, status_at, condition, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, status_color)
 	var action := ""
 	var destination: Node3D = null
 	var destination_name := ""

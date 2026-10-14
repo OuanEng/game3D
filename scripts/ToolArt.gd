@@ -42,30 +42,15 @@ static func ring(parent: Node3D, at: Vector3, radius: float, thickness: float, m
 	return mesh(parent, shape, at, material)
 
 static func hand(parent: Node3D, level: int) -> void:
-	# All anatomy is cube geometry. Nearest filtering keeps generated pixels crisp.
+	# All anatomy is cube geometry with the same solid skin colour.
 	var skin := voxel_material(level)
 	# A single square-section arm/fist silhouette, without individual fingers.
 	box(parent, Vector3(0, -0.005, 0.08), Vector3(0.14, 0.14, 0.38), skin)
-	if level >= 3:
-		box(parent, Vector3(0, 0.033, -0.015), Vector3(0.10, 0.025, 0.06), mat(Color(0.10, 0.12, 0.13), 0.3))
 
-static func voxel_material(level: int) -> StandardMaterial3D:
-	var base := Color(0.92, 0.59, 0.34) if level == 0 else Color(1.0, 0.68, 0.12)
-	var pixels := Image.create(16, 16, false, Image.FORMAT_RGBA8)
-	for y in range(16):
-		for x in range(16):
-			var grain := (x * 7 + y * 11 + x * y) % 13
-			var color := base.lightened(0.32) if grain < 4 else base
-			if grain > 10 or (y < 4 and (x / 2 + y) % 3 == 0):
-				color = base.darkened(0.28)
-			pixels.set_pixel(x, y, color)
-	var material := mat(Color.WHITE)
-	material.albedo_texture = ImageTexture.create_from_image(pixels)
-	material.emission_enabled = true
-	material.emission = Color.WHITE
-	material.emission_texture = material.albedo_texture
-	material.emission_energy_multiplier = 0.22
-	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+static func voxel_material(_level: int) -> StandardMaterial3D:
+	# One warm skin colour for the bare arm and every tool grip, at every level.
+	# Shape lighting supplies shadows; no mottled texture or upgrade recolouring.
+	var material := mat(Color(0.92, 0.59, 0.34), 0.0, 0.18)
 	return material
 
 static func bucket(parent: Node3D, level: int) -> MeshInstance3D:

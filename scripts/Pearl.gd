@@ -39,7 +39,7 @@ func _ready() -> void:
 	surface = ShaderMaterial.new()
 	surface.shader = preload("res://shaders/PearlUV.gdshader")
 	surface.set_shader_parameter("item_kind", clampi(item_kind, 0, 2))
-	surface.set_shader_parameter("item_tint", [Color(1.0, 0.94, 0.79), Color(0.65, 0.40, 0.12), Color(0.16, 0.20, 0.23)][clampi(item_kind, 0, 2)])
+	surface.set_shader_parameter("item_tint", [Color(1.0, 0.96, 0.86), Color(0.83, 0.59, 0.24), Color(0.75, 0.81, 0.88)][clampi(item_kind, 0, 2)])
 	mesh.material_override = surface
 	add_child(mesh)
 	var collider := CollisionShape3D.new()
