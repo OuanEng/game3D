@@ -49,6 +49,23 @@ func _ready() -> void:
 	add_child(collider)
 
 func _physics_process(_delta: float) -> void:
+	# Recover before checking burial: floor height is not material below ground.
+	if state == State.FREE and global_position.y < -3.0:
+		freeze = true
+		global_position = home
+		linear_velocity = Vector3.ZERO
+		angular_velocity = Vector3.ZERO
+		state = State.EXPOSED
+	if state in [State.EXPOSED, State.FREE]:
+		# A slide or a throw can put a released pearl inside a different pile.
+		for terrain in get_tree().get_nodes_in_group("material_piles"):
+			if terrain.sample_height(global_position) > maxf(global_position.y + RADIUS, terrain.global_position.y + terrain.mound_center.y + 0.003):
+				foam_container = terrain
+				state = State.EMBEDDED
+				freeze = true
+				linear_velocity = Vector3.ZERO
+				angular_velocity = Vector3.ZERO
+				break
 	if state == State.EMBEDDED:
 		if is_instance_valid(foam_container) and foam_container.is_covered(global_position):
 			return
@@ -60,13 +77,6 @@ func _physics_process(_delta: float) -> void:
 			freeze = false
 	elif state == State.HELD and is_instance_valid(holder):
 		global_transform = holder.global_transform
-	elif state == State.FREE and global_position.y < -3.0:
-		# Recovery from physics escape; never permanently lose a required pearl.
-		freeze = true
-		global_position = home
-		linear_velocity = Vector3.ZERO
-		angular_velocity = Vector3.ZERO
-		state = State.EMBEDDED
 
 func pick_up(anchor: Node3D) -> bool:
 	if not is_retrievable():

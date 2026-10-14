@@ -6,7 +6,7 @@ var manual_wash_remaining := 0.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	for id in ["blower", "vacuum", "wash", "dig", "dump", "pickup", "drop", "uv", "radio", "alarm", "purchase"]:
+	for id in ["blower", "vacuum", "wash", "dig", "dump", "pickup", "drop", "uv", "radio", "alarm", "purchase", "battery_warning", "collapse"]:
 		var voice := AudioStreamPlayer.new()
 		voice.name = id
 		voice.bus = "SFX"
@@ -38,6 +38,8 @@ func make_clip(id: String, looping: bool) -> AudioStreamWAV:
 			"uv": sample = (filtered * 2.0 + sin(TAU * 260 * t) * 0.10) * exp(-t * 60) * envelope
 			"dig": sample = filtered * 2.5 * exp(-t * 9) * envelope
 			"dump": sample = (filtered * 2.0 + sin(TAU * 70 * t) * 0.16) * envelope
+			"battery_warning": sample = sin(TAU * 160 * t) * 0.3 * envelope
+			"collapse": sample = (filtered * 2.0 + sin(TAU * 55 * t) * 0.15) * envelope
 			"purchase":
 				# Two damped coin notes without a piercing, sustained ring.
 				var second := maxf(0.0, t - 0.12)
@@ -63,7 +65,7 @@ func _process(delta: float) -> void:
 	var enabled: bool = world.manager != null and world.manager.running and not get_tree().paused
 	var using_tool: bool = enabled and not world.player.store_open and world.player.held == null and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and Input.is_action_pressed("brush")
 	var washer := world.get_node_or_null("WashingStation") as Station
-	set_loop("blower", using_tool and world.player.tools.selected_tool == Tools.Tool.BLOWER)
+	set_loop("blower", using_tool and world.player.tools.selected_tool == Tools.Tool.BLOWER and world.manager.blower_charge > 0.0)
 	set_loop("vacuum", using_tool and world.player.tools.selected_tool == Tools.Tool.VACUUM and world.player.bucket_load < world.player.bucket_capacity())
 	set_loop("wash", enabled and washer != null and (washer.washing_item != null or manual_wash_remaining > 0.0))
 	manual_wash_remaining = maxf(0.0, manual_wash_remaining - delta)

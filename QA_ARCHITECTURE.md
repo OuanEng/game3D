@@ -1,3 +1,5 @@
+> **14 October update:** See [MULTIPILE_ARCHITECTURE.md](MULTIPILE_ARCHITECTURE.md) for the current three-pile finale, paid blower batteries, five events and updated 8.2/10 QA review. Older single-pile/event details below are historical.
+
 # Hidden in Foam — architecture and independent QA review
 
 Reviewed 2026-10-09 by the dedicated `qa_review` sub-agent, with final audio and

@@ -1,3 +1,5 @@
+> **14 October update:** See [MULTIPILE_ARCHITECTURE.md](MULTIPILE_ARCHITECTURE.md) for the current three-pile finale, paid blower batteries, five events and updated 8.2/10 QA review. Older single-pile/event details below are historical.
+
 # Hidden in Foam — four-stage implementation
 
 Open `project.godot` in Godot 4.7 and press **F6 on Main.tscn or F5**. Choose

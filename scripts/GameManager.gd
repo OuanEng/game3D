@@ -16,14 +16,17 @@ const UPGRADES := {
 	"blower": {"name": "Industrial blower", "cost": 280, "description": "Slot 4: disperse a wide surface layer; no disposal income."},
 	"vacuum": {"name": "Foam vacuum", "cost": 420, "description": "Slot 5: continuously transfer foam into your carry storage."},
 	"boots": {"name": "Carry speed boots", "cost": 140, "description": "Faster movement and reduced load penalty."},
-	"battery": {"name": "Flashlight battery", "cost": 110, "description": "Longer UV charge and brighter work light. Recharges while UV is off."},
+	"battery": {"name": "Battery capacity", "cost": 180, "description": "Adds 8 seconds of blower runtime and UV capacity. Does not refill the blower."},
 	"grabber": {"name": "Magnetized grabber", "cost": 120, "description": "Extend pickup reach and widen aim assistance; walls still block it."},
+	"battery_pack": {"name": "Recharge blower pack", "cost": 70, "description": "Fully recharge the blower. Each refill costs 1.35x; requires a blower and a depleted battery."},
 	"delay": {"name": "Boss distraction", "cost": 300, "description": "Add two minutes to this shift."}
 }
 # Match Tools.Tool: the scoop is free; UV and detector must be purchased.
 const TOOL_UPGRADES := ["", "uv", "detector", "blower", "vacuum"]
 @export var starting_credits: int = 0
 @export var pearl_reward: int = 25
+var blower_charge := 18.0
+var battery_warning_sent := false
 var credits: int = 0
 var owned: Dictionary = {}
 var debug_used := false
@@ -42,6 +45,8 @@ func select_mode(value: Mode) -> void:
 		return
 	mode = value
 	owned.clear()
+	blower_charge = 18.0
+	battery_warning_sent = false
 	debug_infinite_bucket = false
 	remaining = hardcore_seconds if is_hardcore() else boss_arrival_seconds
 enum Phase { INTRO, PLAYING, WON, LOST }
@@ -60,6 +65,8 @@ func prepare(pearls: Array[Pearl]) -> void:
 	collected = 0
 	credits = starting_credits
 	owned.clear()
+	blower_charge = 18.0
+	battery_warning_sent = false
 	debug_infinite_bucket = false
 	remaining = hardcore_seconds if is_hardcore() else boss_arrival_seconds
 	running = false
@@ -73,7 +80,8 @@ func get_upgrade_catalog() -> Dictionary:
 		catalog[id]["name"] = tr(catalog[id]["name"])
 		catalog[id]["description"] = tr(catalog[id]["description"])
 		catalog[id]["cost"] = upgrade_price(id)
-		catalog[id]["name"] += "  [%d/%d]" % [level(id), max_level(id)]
+		if id != "battery_pack":
+			catalog[id]["name"] += "  [%d/%d]" % [level(id), max_level(id)]
 	return catalog
 
 func level(id: String) -> int:
@@ -82,13 +90,15 @@ func level(id: String) -> int:
 	return int(owned.get(id, 0))
 
 func max_level(id: String) -> int:
+	if id == "battery_pack":
+		return 1000000 # Consumable counter, not an equipment tier.
 	return 1 if id in ["detector", "blower", "vacuum"] else 5
 
 func upgrade_price(id: String) -> int:
 	if not UPGRADES.has(id):
 		return 0
 	# Bounded levels prevent overflow. Each successive level costs 1.85x.
-	return int(ceil(float(UPGRADES[id]["cost"]) * pow(1.85, level(id))))
+	return int(ceil(minf(1000000000.0, float(UPGRADES[id]["cost"]) * pow(1.35 if id == "battery_pack" else 1.85, mini(level(id), 60)))))
 
 func owns_upgrade(id: String) -> bool:
 	return level(id) > 0
@@ -104,11 +114,16 @@ func buy_upgrade(id: String) -> bool:
 	# The store UI is not trusted to enforce cost, phase, or duplicate-purchase rules.
 	if not running or remaining <= 0.0 or not UPGRADES.has(id) or level(id) >= max_level(id):
 		return false
+	if id == "battery_pack" and (not owns_upgrade("blower") or blower_charge >= blower_capacity() - 0.001):
+		return false
 	var cost: int = upgrade_price(id)
 	if credits < cost:
 		return false
 	credits -= cost
 	owned[id] = level(id) + 1
+	if id == "battery_pack":
+		blower_charge = blower_capacity()
+		battery_warning_sent = false
 	if id == "delay":
 		remaining += 120.0
 	wallet_changed.emit(credits)
@@ -164,3 +179,14 @@ func reward_disposal(volume: float, material_kind: int) -> int:
 	credits += payout
 	wallet_changed.emit(credits)
 	return payout
+
+func blower_capacity() -> float:
+	return 18.0 + 8.0 * level("battery")
+
+func consume_blower(seconds: float) -> float:
+	# Return funded motor time, including the final partial tick. No free cuts.
+	if not running or is_hardcore() or not owns_upgrade("blower") or get_tree().paused:
+		return 0.0
+	var funded := minf(maxf(seconds, 0.0), blower_charge)
+	blower_charge -= funded
+	return funded

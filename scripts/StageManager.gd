@@ -18,6 +18,8 @@ var equipment: Dictionary = {}
 var save_path := "user://career.cfg"
 var persistence_enabled := true
 var tutorial_step := 0
+var events: Node
+var sensor_disabled := false
 var event_message := ""
 var event_remaining := 0.0
 var event_elapsed := 0.0
@@ -30,6 +32,9 @@ var rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	persistence_enabled = not "--script" in OS.get_cmdline_args()
+	events = preload("res://scripts/DynamicEvents.gd").new()
+	events.stage = self
+	add_child(events)
 	rng.randomize()
 	var file := ConfigFile.new()
 	if persistence_enabled and file.load(save_path) == OK:
@@ -43,6 +48,14 @@ func _ready() -> void:
 
 func data() -> Dictionary:
 	return STAGES[selected_stage]
+
+func pile_layouts() -> Array:
+	if selected_stage == 3:
+		return [
+			{"center":Vector3(-4.1,0,-1.0), "radii":Vector2(3.1,2.7), "height":2.8, "material":0, "items":3},
+			{"center":Vector3(4.1,0,-1.0), "radii":Vector2(3.1,2.7), "height":2.8, "material":2, "items":3},
+			{"center":Vector3(0,0,-6.3), "radii":Vector2(3.0,2.2), "height":2.2, "material":1, "items":2}]
+	return [{"center":Vector3(0,0,-1.6), "radii":data().radii, "height":data().height, "material":data().material, "items":data().items}]
 
 func configure(pile: FoamMesh) -> void:
 	pile.mound_radii = data().radii
@@ -66,8 +79,9 @@ func begin() -> void:
 	else:
 		# Hands-only variant buries targets shallowly, rather than requiring tools.
 		for item in world.pearls:
-			item.global_position.y = maxf(0.20, world.foam_mesh.sample_height(item.global_position) - 0.15)
+			item.global_position.y = maxf(0.20, item.foam_container.sample_height(item.global_position) - 0.15)
 			item.home = item.global_position
+	world.manager.blower_charge = world.manager.blower_capacity()
 	world.manager.wallet_changed.emit(world.manager.credits)
 
 func can_enter(index: int, hardcore: bool) -> bool:
@@ -150,31 +164,27 @@ func _physics_process(delta: float) -> void:
 					tutorial_step = 6
 		return
 	if event_remaining > 0:
+		events.tick(delta)
 		event_remaining -= delta
 		if event_remaining <= 0:
+			events.resolve()
 			end_event()
 		return
 	event_elapsed += delta
 	if event_elapsed >= next_event:
 		event_elapsed = 0.0
 		next_event = rng.randf_range(35, 55) if selected_stage == 3 else rng.randf_range(65, 95)
-		trigger_event(rng.randi_range(0, 2))
+		trigger_event(rng.randi_range(0, 4))
 
 func trigger_event(kind: int) -> void:
 	end_event()
-	event_remaining = 12.0 if kind == 0 else 8.0
-	event_message = ["Power outage! Use your work light (F7).", "Radio: the supervisor is checking the loading dock.", "Emergency drill: keep searching and stay calm."][kind]
-	world.audio.one_shot("radio" if kind == 1 else "alarm")
-	if kind == 0:
-		for lamp in world.find_children("*", "Light3D", true, false):
-			if not world.player.is_ancestor_of(lamp) and lamp.visible:
-				outage_lights.append(lamp)
-				lamp.hide()
+	events.begin(clampi(kind, 0, 4))
+
+func event_caption() -> String:
+	return tr(event_message) + "  %ds" % ceili(maxf(0.0, event_remaining))
 
 func end_event() -> void:
-	for lamp in outage_lights:
-		if is_instance_valid(lamp):
-			lamp.show()
-	outage_lights.clear()
+	if events != null:
+		events.restore()
 	event_remaining = 0.0
 	event_message = ""

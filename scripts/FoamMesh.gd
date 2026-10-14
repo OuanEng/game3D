@@ -36,6 +36,7 @@ var _step := Vector2.ZERO
 var _random := RandomNumberGenerator.new()
 
 func _ready() -> void:
+	add_to_group("material_piles")
 	assert(global_basis.is_equal_approx(Basis.IDENTITY), "FoamMesh requires unit scale and no rotation.")
 	assert(mound_radii.x > 0.0 and mound_radii.y > 0.0)
 	columns = maxi(columns, 3)
@@ -284,3 +285,35 @@ func world_clear(start: Vector3, finish: Vector3) -> bool:
 	var query := PhysicsRayQueryParameters3D.create(start, finish, 1 | 16)
 	query.hit_from_inside = true
 	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+func avalanche(protected_position: Vector3) -> float:
+	# Conservative neighbour relaxation: transfer m3, never generate new material.
+	# Keep the player's footprint unchanged to avoid trapping the capsule.
+	var moved := 0.0
+	for sweep in range(4):
+		for z in range(1, rows - 1):
+			for x in range(1, columns - 1):
+				var a := z * columns + x
+				var point := to_global(_vertices[a])
+				if Vector2(point.x - protected_position.x, point.z - protected_position.z).length() < 0.9:
+					continue
+				for step in [1, columns]:
+					var b: int = a + step
+					var other := to_global(_vertices[b])
+					if Vector2(other.x - protected_position.x, other.z - protected_position.z).length() < 0.9:
+						continue
+					var distance := _step.x if step == 1 else _step.y
+					var difference: float = heights[a] - heights[b]
+					var excess := absf(difference) - distance * 0.6
+					if excess <= 0.0:
+						continue
+					var donor := a if difference > 0.0 else b
+					var receiver := b if difference > 0.0 else a
+					var volume := minf(heights[donor] * _vertex_areas[donor], excess * 0.22 / (1.0 / _vertex_areas[donor] + 1.0 / _vertex_areas[receiver]))
+					heights[donor] -= volume / _vertex_areas[donor]
+					heights[receiver] += volume / _vertex_areas[receiver]
+					moved += volume
+	if moved > 0.0:
+		_rebuild_surface()
+		surface_changed.emit(0.0) # A slide is not a scoop, never disposal income.
+	return moved

@@ -7,6 +7,8 @@ var accent := Color(0.48, 0.85, 0.73)
 var capacity_bar: ProgressBar
 var capacity_label: Label
 var stage_hint: Label
+var timer_label: Label
+var cash_label: Label
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -42,6 +44,8 @@ func _ready() -> void:
 	capacity_label.add_theme_font_size_override("font_size", 18)
 	capacity_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
+	timer_label = prominent_label("Timer", true)
+	cash_label = prominent_label("Cash", false)
 	stage_hint = Label.new()
 	add_child(stage_hint)
 	stage_hint.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
@@ -55,7 +59,11 @@ func _ready() -> void:
 	stage_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func _process(_delta: float) -> void:
-	stage_hint.text = world.settings.control_hint(tr(world.stages.event_message) if not world.stages.event_message.is_empty() else world.stages.tutorial_text())
+	stage_hint.text = world.settings.control_hint(world.stages.event_caption() if not world.stages.event_message.is_empty() else world.stages.tutorial_text())
+	var seconds := ceili(world.manager.remaining)
+	timer_label.text = "%02d:%02d" % [seconds / 60, seconds % 60]
+	timer_label.modulate = Color(1.0, 0.45, 0.3) if seconds <= 60 else Color.WHITE
+	cash_label.text = "$%d" % world.manager.credits
 	stage_hint.visible = world.manager.running
 	var player: Player = world.player
 	var fill := clampf(player.bucket_load / player.bucket_capacity(), 0.0, 1.0)
@@ -76,14 +84,11 @@ func label_at(at: Vector2, text: String, font_size: int = 19) -> void:
 func _draw() -> void:
 	var m: GameManager = world.manager
 	var p: Player = world.player
-	var clock := Vector2(size.x - 170, 32)
-	draw_arc(clock, 9, 0, TAU, 32, ink, 1.5, true)
-	draw_line(clock, clock + Vector2(0, -6), ink, 1.5)
-	var seconds := int(ceil(m.remaining))
-	label_at(clock + Vector2(18, 5), "%02d:%02d" % [seconds / 60, seconds % 60])
-	label_at(Vector2(28, 36), "%d / %d    ·    $%d" % [m.collected, m.total, m.credits])
+	label_at(Vector2(28, 118), "%d / %d" % [m.collected, m.total], 22)
+	if m.owns_upgrade("blower"):
+		label_at(Vector2(size.x - 290, 118), tr("Blower battery %d%%") % roundi(m.blower_charge / m.blower_capacity() * 100.0), 18)
 	if m.is_hardcore():
-		label_at(Vector2(28, 58), tr("HARDCORE · HANDS ONLY"), 12)
+		label_at(Vector2(28, 140), tr("HARDCORE · HANDS ONLY"), 12)
 	if not m.running:
 		label_at(size * 0.5 - Vector2(200, 0), tr("SHIFT COMPLETE") if m.collected == m.total else tr("THE BOSS HAS ARRIVED"), 26)
 		label_at(size * 0.5 + Vector2(-110, 36), tr("R · Return to Main Menu"))
@@ -167,3 +172,29 @@ func slot_style(color: Color, selected: bool) -> StyleBoxFlat:
 	style.set_border_width_all(2 if selected else 1)
 	style.set_corner_radius_all(6)
 	return style
+
+func prominent_label(node_name: String, right: bool) -> Label:
+	var label := Label.new()
+	label.name = node_name
+	add_child(label)
+	label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT if right else Control.PRESET_TOP_LEFT)
+	label.offset_left = -250 if right else 24
+	label.offset_right = -24 if right else 300
+	label.offset_top = 18
+	label.offset_bottom = 76
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if right else HORIZONTAL_ALIGNMENT_LEFT
+	label.add_theme_font_size_override("font_size", 38)
+	label.add_theme_color_override("font_color", Color.WHITE)
+	label.add_theme_color_override("font_outline_color", Color(0.01, 0.015, 0.02))
+	label.add_theme_constant_override("outline_size", 8)
+	var bold := FontVariation.new()
+	bold.base_font = ThemeDB.fallback_font
+	bold.variation_embolden = 0.7
+	label.add_theme_font_override("font", bold)
+	var plate := StyleBoxFlat.new()
+	plate.bg_color = Color(0.01, 0.02, 0.03, 0.92)
+	plate.set_content_margin_all(8)
+	plate.set_corner_radius_all(6)
+	label.add_theme_stylebox_override("normal", plate)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return label

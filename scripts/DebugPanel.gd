@@ -129,7 +129,8 @@ func set_infinite(enabled: bool) -> void:
 func clear_foam() -> void:
 	if is_open:
 		world.manager.debug_used = true
-		world.foam_mesh.debug_clear()
+		for pile in world.foam_piles:
+			pile.debug_clear()
 
 func set_highlight(enabled: bool) -> void:
 	world.manager.debug_used = world.manager.debug_used or enabled

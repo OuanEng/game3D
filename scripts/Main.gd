@@ -9,6 +9,7 @@ var detector: ProgressBar
 var pearls: Array[Pearl] = []
 var barn: FactoryEnvironment
 var foam_mesh: FoamMesh
+var foam_piles: Array[FoamMesh] = []
 var intro: IntroCutscene
 var hud: CanvasLayer
 var shop: UpgradeUI
@@ -165,14 +166,37 @@ func build_station(at: Vector3, kind: Station.Kind, color: Color, caption: Strin
 			Props.box(self, at + Vector3(0, 1.12, z), Vector3(1.5, 0.22, 0.08), color)
 
 func build_foam_and_pearls() -> void:
-	foam_mesh = FoamMesh.new()
-	stages.configure(foam_mesh)
-	var grid: Vector2i = settings.mesh_grid()
-	foam_mesh.columns = grid.x
-	foam_mesh.rows = grid.y
-	foam_mesh.name = "FoamMesh"
-	add_child(foam_mesh)
-	pearls = foam_mesh.pearls
+	for layout in stages.pile_layouts():
+		var pile := FoamMesh.new()
+		stages.configure(pile)
+		pile.mound_center = layout.center
+		pile.mound_radii = layout.radii
+		pile.mound_height = layout.height
+		pile.material_kind = layout.material
+		pile.pearl_count = layout.items
+		pile.layout_seed += foam_piles.size() * 43
+		var grid: Vector2i = settings.mesh_grid()
+		pile.columns = grid.x
+		pile.rows = grid.y
+		pile.name = "FoamMesh" if foam_piles.is_empty() else "MaterialPile%d" % foam_piles.size()
+		add_child(pile)
+		if stages.selected_stage == 3:
+			var sign := Label3D.new()
+			sign.text = ["FOAM", "SALT", "SAND"][pile.material_kind]
+			sign.position = pile.mound_center + Vector3(0, 0.8, pile.mound_radii.y + 0.35)
+			sign.font_size = 64
+			sign.pixel_size = 0.007
+			sign.outline_size = 12
+			pile.add_child(sign)
+		foam_piles.append(pile)
+		pearls.append_array(pile.pearls)
+	foam_mesh = foam_piles[0] # Compatibility reference, never the whole stage.
+
+func terrain_height(at: Vector3) -> float:
+	var height := 0.0
+	for pile in foam_piles:
+		height = maxf(height, pile.sample_height(at))
+	return height
 
 func build_ui() -> void:
 	var layer := CanvasLayer.new()

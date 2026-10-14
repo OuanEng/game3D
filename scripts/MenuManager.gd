@@ -66,7 +66,8 @@ func show_main() -> void:
 	world.hud.hide()
 
 func start_shift(mode: GameManager.Mode = GameManager.Mode.NORMAL) -> void:
-	world.foam_mesh.configure_fresh_grid(world.settings.mesh_grid())
+	for pile in world.foam_piles:
+		pile.configure_fresh_grid(world.settings.mesh_grid())
 	world.manager.select_mode(mode)
 	world.stages.begin()
 	screen = "playing"

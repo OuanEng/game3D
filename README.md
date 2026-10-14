@@ -1,3 +1,5 @@
+> **14 October update:** See [MULTIPILE_ARCHITECTURE.md](MULTIPILE_ARCHITECTURE.md) for the current three-pile finale, paid blower batteries, five events and updated 8.2/10 QA review. Older single-pile/event details below are historical.
+
 # Hidden in Foam — Godot 4
 
 Latest QA and audio/sink update: [10-category sub-agent assessment and architecture](QA_ARCHITECTURE.md).

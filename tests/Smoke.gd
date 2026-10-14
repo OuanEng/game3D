@@ -56,7 +56,7 @@ func run() -> void:
 	scene.shop.close_store()
 
 	# Exact volume conservation includes boundary triangle weights and partial cuts.
-	var point := Vector3(-0.7, 0, -0.8)
+	var point := terrain.mound_center + Vector3(-0.7, 0, 0.8)
 	var untouched_height := terrain.sample_height(Vector3(2.2, 0, -1))
 	var initial_height := terrain.sample_height(point)
 	var initial_volume := terrain.remaining_volume()
@@ -162,7 +162,8 @@ func run() -> void:
 	check(not manager.collect(pearl, Vector3.ZERO) and manager.credits == reward_before + 25, "Duplicate deposit cannot reward twice")
 
 	# A completely excavated region is flat, nonnegative and contains no hidden residue volume.
-	terrain.excavate(Vector3(0, 0, -1), 50.0, 50.0, 9999)
+	for pile in scene.foam_piles:
+		pile.excavate(pile.mound_center, 50.0, 100.0, 9999)
 	check(terrain.remaining_volume() < 0.00000001, "Deep cut clamps at ground")
 	check(terrain.excavate(point, 1, 1, 99) == 0, "Empty terrain cannot generate inventory")
 	await physics_frame

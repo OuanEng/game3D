@@ -37,7 +37,7 @@ func open_store(player: Player, manager: GameManager) -> void:
 	_player.velocity.x = 0.0
 	_player.velocity.z = 0.0
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	_message.text = tr("Return items or dump foam to earn credits. Next levels cost 1.85x. ") + (tr("Shift paused.") if get_tree().paused else tr("Boss clock is running."))
+	_message.text = tr("Earn credits by returning items or dumping material. Upgrades: 1.85x; recharges: 1.35x. ") + (tr("Shift paused.") if get_tree().paused else tr("Boss clock is running."))
 	_message.modulate = Color(0.73, 0.81, 0.79)
 	_build_catalog()
 	_refresh()
@@ -86,7 +86,7 @@ func _buy(id: String) -> void:
 	var item: Dictionary = _manager.get_upgrade_catalog().get(id, {})
 	if _manager.buy_upgrade(id):
 		_message.text = tr("%s unlocked. Select 1 / SCOOP, 2 / UV, 3 / DETECTOR or use the mouse wheel.") % String(item.get("name", id))
-		if id in ["scoop", "bucket", "auto_washer"]:
+		if id in ["scoop", "bucket", "auto_washer", "battery", "battery_pack"]:
 			_message.text = tr("%s installed. This upgrade works automatically.") % String(item.get("name", id))
 		_message.modulate = Color(0.43, 0.95, 0.69)
 	else:
@@ -106,6 +106,8 @@ func _refresh() -> void:
 		var cost := int(item["cost"])
 		var owned := _manager.level(id) >= _manager.max_level(id)
 		button.disabled = owned or _manager.credits < cost or not _manager.running
+		if id == "battery_pack":
+			button.disabled = button.disabled or not _manager.owns_upgrade("blower") or _manager.blower_charge >= _manager.blower_capacity() - 0.001
 		button.text = tr("OWNED") if owned else tr("BUY / %d") % cost
 		if owned:
 			button.tooltip_text = "Already available in your loadout."

@@ -21,6 +21,7 @@ var gravity: float = 9.8
 var notice: String = ""
 var notice_until: int = 0
 var bucket_load: float = 0.0 # Cubic metres of actual terrain removed, not click count.
+var carried_materials: Dictionary = {}
 var dig_cooldown: float = 0.0
 var uv_charge: float = 45.0
 var work_light: SpotLight3D
@@ -125,7 +126,7 @@ func try_scoop_at(hit_point: Vector3) -> float:
 	if room < 0.000001:
 		return 0.0
 	var removed := pile.excavate(hit_point, scoop_radius(), scoop_depth(), room)
-	bucket_load = minf(bucket_capacity(), bucket_load + removed)
+	add_material(removed, pile.material_kind)
 	if removed > 0.0:
 		get_parent().stages.note_dig()
 		get_parent().audio.one_shot("dig")
@@ -153,7 +154,14 @@ func dump_bucket(bin: WasteBin, require_aim: bool = true) -> float:
 	if dumped <= 0.0:
 		return 0.0
 	# Disposal income lets the player buy a bucket even before finding an item.
-	manager.reward_disposal(dumped, pile.material_kind)
+	var accounted := 0.0
+	for kind in carried_materials:
+		var amount := minf(float(carried_materials[kind]), maxf(0.0, dumped - accounted))
+		manager.reward_disposal(amount, int(kind))
+		accounted += amount
+	if dumped > accounted:
+		manager.reward_disposal(dumped - accounted, pile.material_kind)
+	carried_materials.clear()
 	get_parent().stages.note_dump()
 	get_parent().audio.one_shot("dump")
 	bucket_load = 0.0
@@ -209,7 +217,7 @@ func _physics_process(delta: float) -> void:
 	detector_strength = tools.detector_strength
 	update_auto_washer(delta)
 	var hit := cast_from_camera(effective_pickup_reach(), 1 | 4 | 8 | 16)
-	if held == null and manager.level("grabber") > 0 and (hit.is_empty() or hit.collider == pile.foam_body):
+	if held == null and manager.level("grabber") > 0 and (hit.is_empty() or hit.collider.get_parent() is FoamMesh):
 		var assisted := assisted_pickup()
 		if assisted != null:
 			hit = {"collider": assisted}
@@ -277,7 +285,7 @@ func assisted_pickup() -> Pearl:
 	# Widen the aiming cone, but require exposure and an unobstructed physics ray.
 	var best: Pearl = null
 	var best_angle := 0.03 + manager.level("grabber") * 0.015
-	for item in pile.pearls:
+	for item in manager.registered:
 		if not item.is_retrievable():
 			continue
 		var offset := item.global_position - camera.global_position
@@ -319,3 +327,7 @@ func drop_safely(throw_item: bool = false) -> void:
 	if throw_item:
 		held.linear_velocity = -camera.global_basis.z * 3.5 + Vector3.UP * 0.8
 	held = null
+
+func add_material(volume: float, kind: int) -> void:
+	bucket_load += volume
+	carried_materials[kind] = float(carried_materials.get(kind, 0.0)) + volume

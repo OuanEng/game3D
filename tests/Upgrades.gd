@@ -15,7 +15,7 @@ func run() -> void:
 	var manager: GameManager = world.manager
 	var player: Player = world.player
 	player.set_physics_process(false)
-	check(manager.UPGRADES.size() == 12, "Exactly twelve upgrades")
+	check(manager.UPGRADES.size() == 13, "Twelve upgrades plus a recharge consumable")
 	manager.credits = 1000000
 	for id in manager.UPGRADES:
 		check(manager.buy_upgrade(id), "Purchase " + id)

@@ -199,5 +199,21 @@
   "Returned %d / %d items": "คืนของแล้ว %d / %d ชิ้น",
   "All four stages complete!": "ผ่านครบทั้งสี่ด่านแล้ว!",
   "This stage is unavailable in Hardcore.": "ด่านนี้ไม่เปิดให้เล่นในโหมดฮาร์ดคอร์",
-  "Go to Stage %d": "ไปด่าน %d"
+  "Go to Stage %d": "ไปด่าน %d",
+  "Battery capacity": "ความจุแบตเตอรี่",
+  "Adds 8 seconds of blower runtime and UV capacity. Does not refill the blower.": "เพิ่มเวลาเครื่องเป่า 8 วินาทีและความจุไฟ UV ไม่เติมแบตเตอรี่เครื่องเป่าให้ฟรี",
+  "Recharge blower pack": "เติมแบตเตอรี่เครื่องเป่า",
+  "Fully recharge the blower. Each refill costs 1.35x; requires a blower and a depleted battery.": "เติมแบตเตอรี่เครื่องเป่าจนเต็ม ราคาครั้งถัดไปเพิ่ม 1.35 เท่า ต้องมีเครื่องเป่าและแบตเตอรี่ไม่เต็ม",
+  "Sensor interference - signal unavailable": "สัญญาณรบกวน เครื่องตรวจจับใช้งานไม่ได้ชั่วคราว",
+  "Blower empty - recharge at the supply desk": "แบตเตอรี่เครื่องเป่าหมด เติมได้ที่ร้านอุปกรณ์",
+  "Blower battery %d%%": "แบตเตอรี่เครื่องเป่า %d%%",
+  "Pile avalanche! Excavated paths may refill.": "กองวัสดุถล่ม! ทางที่ขุดไว้อาจถูกกลบ",
+  "Boss patrol: dump trash; wash dirty finds or hide them behind cover!": "หัวหน้ากำลังตรวจ! ทิ้งเศษวัสดุ ล้างของสกปรกหรือซ่อนไว้หลังที่กำบัง",
+  "Dust storm: poor visibility near sand and salt.": "พายุฝุ่น: มองเห็นได้น้อยลงใกล้กองทรายและเกลือ",
+  "Patrol found a mess: 30 seconds lost": "หัวหน้าเจอความรก: เสียเวลา 30 วินาที",
+  "Patrol passed - keep searching": "ผ่านการตรวจแล้ว ค้นหาต่อได้",
+  "FOAM": "โฟม",
+  "SALT": "เกลือ",
+  "SAND": "ทราย",
+  "Earn credits by returning items or dumping material. Upgrades: 1.85x; recharges: 1.35x. ": "คืนของหรือทิ้งวัสดุเพื่อรับเงิน อัปเกรดครั้งถัดไป ×1.85 เติมแบตครั้งถัดไป ×1.35 "
 }

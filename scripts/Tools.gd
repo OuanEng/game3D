@@ -52,7 +52,7 @@ func select_tool(index: int) -> bool:
 func use_tool(delta: float, active: bool, camera: Camera3D, stroke: bool = false) -> String:
 	if manager.is_hardcore() and selected_tool != Tool.SCOOP:
 		select_tool(Tool.SCOOP)
-	_air.emitting = active and manager.running and selected_tool == Tool.BLOWER and player.held == null
+	_air.emitting = active and manager.running and selected_tool == Tool.BLOWER and player.held == null and manager.blower_charge > 0.0
 	for i in range(8):
 		var led := _models[2].get_node_or_null("LED%d" % i) as MeshInstance3D
 		if led != null:
@@ -84,8 +84,10 @@ func use_tool(delta: float, active: bool, camera: Camera3D, stroke: bool = false
 			if not stroke:
 				return tr("Release and click again for another scoop")
 			var hit := _ray(origin, origin + forward * player.reach, 1 | 4 | 8 | 16)
-			if hit.is_empty() or hit.collider != pile.foam_body:
+			if hit.is_empty() or not hit.collider.get_parent() is FoamMesh:
 				return tr("Aim at the foam surface within reach")
+			pile = hit.collider.get_parent() as FoamMesh
+			player.pile = pile
 			var removed := player.try_scoop_at(hit.position)
 			if removed > 0.0:
 				player.dig_cooldown = 0.65 * pow(0.78, manager.level("gloves"))
@@ -97,19 +99,34 @@ func use_tool(delta: float, active: bool, camera: Camera3D, stroke: bool = false
 				_reset_effects()
 				return tr("UV depleted · release to recharge")
 			_uv_light.visible = true
-			pile.set_uv_scan(origin, forward, true)
-			_update_uv(origin, forward)
+			for terrain in player.get_parent().foam_piles:
+				pile = terrain
+				pile.set_uv_scan(origin, forward, true)
+				_update_uv(origin, forward)
 			return tr("UV: soft glints reveal items just beneath the surface")
 		Tool.DETECTOR:
+			if player.get_parent().stages.sensor_disabled:
+				_reset_effects()
+				return tr("Sensor interference - signal unavailable")
 			_update_detector(delta, camera)
 			return tr("Signal %d%% / faster beeps mean a closer pearl") % roundi(detector_strength * 100)
 		Tool.BLOWER, Tool.VACUUM:
+			var motor_delta := delta
+			if selected_tool == Tool.BLOWER:
+				motor_delta = manager.consume_blower(delta)
+				if manager.blower_charge <= manager.blower_capacity() * 0.2 and not manager.battery_warning_sent:
+					manager.battery_warning_sent = true
+					player.get_parent().audio.one_shot("battery_warning")
+				if motor_delta <= 0.0:
+					_reset_effects()
+					return tr("Blower empty - recharge at the supply desk")
 			var hit := _ray(origin, origin + forward * player.reach, 1 | 4 | 8 | 16)
-			if hit.is_empty() or hit.collider != pile.foam_body:
+			if hit.is_empty() or not hit.collider.get_parent() is FoamMesh:
 				_continuous_elapsed = 0.0
 				return tr("Aim at foam")
-			_continuous_elapsed += delta
-			if _continuous_elapsed < CONTINUOUS_CUT_INTERVAL:
+			pile = hit.collider.get_parent() as FoamMesh
+			_continuous_elapsed += motor_delta
+			if _continuous_elapsed < CONTINUOUS_CUT_INTERVAL and not (selected_tool == Tool.BLOWER and manager.blower_charge <= 0.0):
 				return ""
 			# Accumulate time so lower rebuild frequency preserves litres/second.
 			var cut_delta := _continuous_elapsed
@@ -120,7 +137,7 @@ func use_tool(delta: float, active: bool, camera: Camera3D, stroke: bool = false
 			else:
 				var room := maxf(0.0, player.bucket_capacity() - player.bucket_load)
 				var volume := pile.excavate(hit.position, 0.55, 0.45 * cut_delta, minf(room, cut_delta * 0.12))
-				player.bucket_load += volume
+				player.add_material(volume, pile.material_kind)
 				player.bucket_changed.emit(player.bucket_load, player.bucket_capacity())
 			return ""
 	return ""
@@ -129,7 +146,9 @@ func _update_uv(origin: Vector3, forward: Vector3) -> void:
 	var hints := PackedVector4Array()
 	hints.resize(8)
 	var hint_count := 0
-	for pearl in pile.pearls:
+	for pearl in manager.registered:
+		if pearl.foam_container != pile:
+			continue
 		var result := uv_visibility(pearl, origin, forward)
 		var strength: float = result.get("strength", 0.0)
 		pearl.set_uv_strength(strength)
@@ -149,7 +168,7 @@ func uv_visibility(pearl: Pearl, origin: Vector3, forward: Vector3) -> Dictionar
 	var distance := offset.length()
 	if distance <= 0.001 or distance >= 7.0 or offset.normalized().dot(forward.normalized()) <= 0.91:
 		return {}
-	var cover := maxf(0.0, pile.sample_height(pearl.global_position) - pearl.global_position.y - Pearl.RADIUS)
+	var cover := maxf(0.0, pearl.foam_container.sample_height(pearl.global_position) - pearl.global_position.y - Pearl.RADIUS)
 	if cover >= UV_MAX_COVER or not pile.world_clear(origin, pearl.global_position):
 		return {}
 	# A near-surface sphere on the far side of a mountain must not glow through
@@ -164,11 +183,11 @@ func uv_visibility(pearl: Pearl, origin: Vector3, forward: Vector3) -> Dictionar
 	var has_entry := false
 	for index in range(samples):
 		var point := origin + ray_direction * (float(index) + 0.5) * step_length
-		if pile.sample_height(point) > point.y + 0.003:
+		if _height_at(point) > point.y + 0.003:
 			foam_path += step_length
 			if not has_entry:
 				entry = point
-				entry.y = pile.sample_height(point)
+				entry.y = _height_at(point)
 				has_entry = true
 			if foam_path > UV_MAX_PATH:
 				return {}
@@ -189,7 +208,7 @@ func _ray(start: Vector3, finish: Vector3, mask: int) -> Dictionary:
 
 func _update_detector(delta: float, camera: Camera3D) -> void:
 	var nearest := 12.0
-	for pearl in pile.pearls:
+	for pearl in manager.registered:
 		if _searchable(pearl) and pile.world_clear(camera.global_position, pearl.global_position):
 			var distance := camera.global_position.distance_to(pearl.global_position)
 			if distance < nearest:
@@ -214,9 +233,10 @@ func _reset_effects() -> void:
 	_continuous_elapsed = 0.0
 	_beep.stop()
 	_uv_light.visible = false
-	pile.set_uv_scan(Vector3.ZERO, Vector3.FORWARD, false)
-	pile.material.set_shader_parameter("uv_hint_count", 0)
-	for pearl in pile.pearls:
+	for terrain in player.get_parent().foam_piles:
+		terrain.set_uv_scan(Vector3.ZERO, Vector3.FORWARD, false)
+		terrain.material.set_shader_parameter("uv_hint_count", 0)
+	for pearl in manager.registered:
 		pearl.set_uv_strength(0.0)
 
 func animate_scoop() -> void:
@@ -304,3 +324,7 @@ func _clear_art(root: Node3D) -> void:
 	for child in root.get_children():
 		root.remove_child(child)
 		child.queue_free()
+
+func _height_at(point: Vector3) -> float:
+	# Standalone tool tests can use one pile; the game queries all occluders.
+	return player.get_parent().terrain_height(point) if is_instance_valid(player) else pile.sample_height(point)
