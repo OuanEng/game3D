@@ -62,6 +62,10 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _unhandled_input(event: InputEvent) -> void:
+	# A click/keypress is also the WebAudio user gesture when entering gameplay.
+	var music := get_parent().get_node_or_null("AmbientMusic") as AudioStreamPlayer
+	if (event is InputEventMouseButton and event.pressed or event is InputEventKey and event.pressed) and music != null and not music.playing:
+		music.play()
 	if event.is_action_pressed("restart"):
 		get_tree().reload_current_scene()
 		return

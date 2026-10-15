@@ -81,6 +81,10 @@ func _process(delta: float) -> void:
 		title_camera.look_at(Vector3(0, 2, -1.6))
 
 func _input(event: InputEvent) -> void:
+	# Browsers suspend WebAudio until a trusted user gesture. Restarting the
+	# already-loaded stream here unlocks BGM without requiring a second click.
+	if event is InputEventMouseButton and event.pressed or event is InputEventKey and event.pressed:
+		unlock_audio()
 	if not world.settings.pending_action.is_empty():
 		return
 	if world.get_node_or_null("DebugPanel") != null and world.get_node("DebugPanel").is_open:
@@ -96,6 +100,11 @@ func _input(event: InputEvent) -> void:
 	elif screen in ["catalog", "stages"]:
 		show_main()
 	get_viewport().set_input_as_handled()
+
+func unlock_audio() -> void:
+	var music := world.get_node_or_null("AmbientMusic") as AudioStreamPlayer
+	if music != null and not music.playing:
+		music.play()
 
 func show_pause() -> void:
 	screen = "pause"

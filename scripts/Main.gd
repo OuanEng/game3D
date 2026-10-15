@@ -70,6 +70,7 @@ func _ready() -> void:
 	add_child(menus)
 	manager.game_ended.connect(menus.show_results)
 	var music := preload("res://scripts/AmbientMusic.gd").new()
+	music.name = "AmbientMusic"
 	add_child(music)
 	minimal_hud = preload("res://scripts/MinimalHUD.gd").new()
 	minimal_hud.world = self
