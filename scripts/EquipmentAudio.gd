@@ -10,7 +10,7 @@ func _ready() -> void:
 		var voice := AudioStreamPlayer.new()
 		voice.name = id
 		voice.bus = "SFX"
-		voice.volume_db = -22.0
+		voice.volume_db = -13.0
 		voice.stream = make_clip(id, id in ["blower", "vacuum", "wash"])
 		add_child(voice)
 		voices[id] = voice

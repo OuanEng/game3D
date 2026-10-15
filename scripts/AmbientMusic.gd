@@ -42,7 +42,10 @@ static func generate_loop() -> AudioStreamWAV:
 		var shuffle := brush * exp(-offbeat * 45.0) * 0.15 if phase > BEAT * 0.60 else 0.0
 		filtered = lerpf(filtered, pad + bass + kick + snare + shuffle, 0.12)
 		var fade := minf(1.0, minf(t, SECONDS - t) / 0.08)
-		data.encode_s16(i * 2, int(filtered * fade * 32767.0))
+		# The chord bed is intentionally soft, but WebAudio's normalisation can
+		# make the old -44 dB procedural signal effectively inaudible. Boost the
+		# finished mix here and leave headroom for the player's master bus.
+		data.encode_s16(i * 2, int(clampf(filtered * fade * 3.5, -1.0, 1.0) * 32767.0))
 	var wav := AudioStreamWAV.new()
 	wav.format = AudioStreamWAV.FORMAT_16_BITS
 	wav.mix_rate = RATE
