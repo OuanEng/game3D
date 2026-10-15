@@ -102,8 +102,11 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 func unlock_audio() -> void:
+	AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"), false)
+	AudioServer.set_bus_mute(AudioServer.get_bus_index("BGM"), false)
+	AudioServer.set_bus_mute(AudioServer.get_bus_index("SFX"), false)
 	var music := world.get_node_or_null("AmbientMusic") as AudioStreamPlayer
-	if music != null and not music.playing:
+	if music != null:
 		music.play()
 
 func show_pause() -> void:
